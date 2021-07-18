@@ -282,25 +282,22 @@ void UVRCharacterComponent::SmoothRotation(float DeltaTime)
 {
 	if (!VRCharacterCapsule || !VRCharacterCamera || !VRCharacterCameraOrigin)
 		return;
-
-	//set a deadzone for the thumbsticks
-	float ThumbstickDeadZone = 0.75f;
 	
 	if (bSmoothTurning)
 	{
-		if (CurrentXRotationValue > ThumbstickDeadZone || CurrentXRotationValue < -ThumbstickDeadZone)
+		if (CurrentXRotationValue > RotationThumbstickDeadZone || CurrentXRotationValue < -RotationThumbstickDeadZone)
 		{
 			if (CurrentXRotationValue != 0)
 			{
 				//New Rotation
 				FVector Distance = GetOwner()->GetActorLocation() - VRCharacterCamera->GetComponentLocation();
-				FVector Rotation = Distance.RotateAngleAxis((SmoothTurningSensitivity * CurrentXRotationValue) * DeltaTime, FVector(0, 0, 1));
-				FVector FinalLocation = GetOwner()->GetActorLocation() + Rotation;
+				FVector Rotation = Distance.RotateAngleAxis(((SmoothTurningSensitivity * 10) * CurrentXRotationValue) * DeltaTime, FVector(0, 0, 1));
+				FVector FinalLocation = VRCharacterCamera->GetComponentLocation() + Rotation;
 
 				//VRCharacterCameraOrigin->SetWorldLocation(FinalLocation);
 				//VRCharacterCameraOrigin->SetWorldRotation(FRotator(0, (SmoothTurningSensitivity * CurrentXRotationValue) * DeltaTime, 0));
 				GetOwner()->SetActorLocation(FinalLocation);
-				GetOwner()->AddActorWorldRotation(FRotator(0, SmoothTurningSensitivity * DeltaTime, 0));
+				GetOwner()->AddActorWorldRotation(FRotator(0, ((SmoothTurningSensitivity * 10) * CurrentXRotationValue) * DeltaTime, 0));
 			}
 		}
 	}
@@ -308,22 +305,29 @@ void UVRCharacterComponent::SmoothRotation(float DeltaTime)
 	{
 		if (!bDoneSnapTurning)
 		{
-			if (CurrentXRotationValue > ThumbstickDeadZone || CurrentXRotationValue < -ThumbstickDeadZone)
+			if (CurrentXRotationValue > RotationThumbstickDeadZone || CurrentXRotationValue < -RotationThumbstickDeadZone)
 			{
 				if (CurrentXRotationValue != 0)
 				{
+					float SnapeTurningValue = SnapTurningAmount;
+
+					if (CurrentXRotationValue > 0)
+						SnapeTurningValue = SnapTurningAmount;
+					else
+						SnapeTurningValue = -SnapTurningAmount;
+
 					//New Rotation
-					FVector Distance = VRCharacterCapsule->GetComponentLocation() - VRCharacterCamera->GetComponentLocation();
-					FVector Rotation = Distance.RotateAngleAxis((SnapTurningAmount * CurrentXRotationValue) * DeltaTime, FVector(0, 0, 1));
+					FVector Distance = GetOwner()->GetActorLocation() - VRCharacterCamera->GetComponentLocation();
+					FVector Rotation = Distance.RotateAngleAxis(SnapeTurningValue, FVector(0, 0, 1));
 					FVector FinalLocation = VRCharacterCamera->GetComponentLocation() + Rotation;
 
-					VRCharacterCameraOrigin->SetWorldLocation(FinalLocation);
-					VRCharacterCameraOrigin->SetWorldRotation(FRotator(0, (SnapTurningAmount * CurrentXRotationValue) * DeltaTime, 0));
+					GetOwner()->SetActorLocation(FinalLocation);
+					GetOwner()->AddActorWorldRotation(FRotator(0, SnapeTurningValue, 0));
 					bDoneSnapTurning = true;
 				}
 			}
 		}
-		else if (CurrentXRotationValue < ThumbstickDeadZone || CurrentXRotationValue > -ThumbstickDeadZone)
+		else if (CurrentXRotationValue < RotationThumbstickDeadZone && CurrentXRotationValue > -RotationThumbstickDeadZone)
 		{
 			bDoneSnapTurning = false;
 		}

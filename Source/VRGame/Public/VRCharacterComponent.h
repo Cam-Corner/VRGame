@@ -101,6 +101,11 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Movement Settings")
 		float GravitySpeed = 600;
 
+
+	/* set a deadzone for the thumbsticks */
+	UPROPERTY(EditAnywhere, Category = "Camera Settings")
+	float RotationThumbstickDeadZone = 0.25f;
+
 	/* Speed of the smooth camera turning */
 	UPROPERTY(EditAnywhere, Category = "Camera Settings")
 		float SmoothTurningSensitivity = 15;
@@ -111,7 +116,7 @@ private:
 
 	/* if true we use smooth turning || if false we use snap turning */
 	UPROPERTY(EditAnywhere, Category = "Camera Settings")
-		float bSmoothTurning = true;
+		bool bSmoothTurning = true;
 
 /*======
 Private Components
