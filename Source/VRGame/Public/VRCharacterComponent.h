@@ -59,10 +59,15 @@ public:
 	}
 
 	/* Set the capsule component this actor component should use */
-	void SetVRCharacterCapsule(UCapsuleComponent* Capsule, USceneComponent* ForwardMovementVector) 
+	void SetVRCharacterCapsule(UCapsuleComponent* Capsule) 
 	{ 
 		VRCharacterCapsule = Capsule; 
-		VRCharacterForwardVector = ForwardMovementVector;
+	}
+
+	/* Set the Pawn that owns this component */
+	void SetComponentOwner(APawn* Owner)
+	{
+		ComponentOwner = Owner;
 	}
 
 	/* Set the capsule component this actor component should use */
@@ -74,13 +79,21 @@ Private Functions
 private:
 	/*Handles the final movement of the character*/
 	void HandleMovement(float DeltaTime);
-	void HandleMovementNonPhysics(float DeltaTime);
 
 	/* Handle Smooth Rotation */
 	void SmoothRotation(float DeltaTime);
 	
 	/* Scale the players collision from the floor to the headset*/
 	void ScaleCollisionWithPlayer();
+
+	/* Move Collision To HMD headset */
+
+	void MoveCollisionToHMD();
+
+	/* check how far the HMD is from the collision */
+	void CheckHMDDistanceFromCollision();
+
+
 /*=======
 Private UPROPERTY() Variables
 =========*/
@@ -118,6 +131,10 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Camera Settings")
 		bool bSmoothTurning = true;
 
+	/* Max Distance the camera can be from the collision */
+	UPROPERTY(EditAnywhere, Category = "Camera Settings")
+		float MaxCameraDistanceFromCollision = 20.0f;
+
 /*======
 Private Components
 =======*/
@@ -134,9 +151,8 @@ private:
 	/* The capsule component set by the parent actor to use */
 	UCapsuleComponent* VRCharacterCapsule;
 
-	/* The scene component set by the parent actor to use as a forward vector */
-	USceneComponent* VRCharacterForwardVector;
-
+	/* The owner of this component */
+	APawn* ComponentOwner;
 /*======
 Private Variables
 =======*/

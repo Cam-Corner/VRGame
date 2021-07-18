@@ -61,7 +61,6 @@ private:
 	==================*/
 	class USceneComponent* RootComp;
 	class USceneComponent* VRCameraRoot;
-	class USceneComponent* VRForwardVector;
 	class UCameraComponent* VRCamera;
 	UPROPERTY(VisibleAnywhere, Category = "BodyCollision")
 		class UCapsuleComponent* BodyCollision;

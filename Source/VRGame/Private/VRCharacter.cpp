@@ -35,10 +35,6 @@ AVRCharacter::AVRCharacter()
 	VRCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("VRCamera"));
 	VRCamera->AttachToComponent(VRCameraRoot, FAttachmentTransformRules::KeepWorldTransform);
 
-	VRForwardVector = CreateDefaultSubobject<USceneComponent>(TEXT("VRForwardVector"));
-	VRForwardVector->AttachToComponent(RootComp, FAttachmentTransformRules::KeepWorldTransform);
-	
-
 	/*ForwardDirection = CreateDefaultSubobject<UArrowComponent>(TEXT("ForwardDirection"));
 	ForwardDirection->AttachToComponent(RootComp, FAttachmentTransformRules::KeepWorldTransform);
 	ForwardDirection->bHiddenInGame = false;
@@ -94,14 +90,14 @@ AVRCharacter::AVRCharacter()
 	BodyCollision->SetCollisionProfileName("BlockAll");
 
 	VRCharacterComponent = CreateDefaultSubobject<UVRCharacterComponent>(TEXT("VR Character Component"));
-	AddOwnedComponent(VRCharacterComponent);
+	//AddOwnedComponent(VRCharacterComponent);
 }
 
 // Called when the game starts or when spawned
 void AVRCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	BodyCollision->bHiddenInGame = false;
+	BodyCollision->bHiddenInGame = true;
 
 	SpawnHands();
 
@@ -112,8 +108,9 @@ void AVRCharacter::BeginPlay()
 
 	if (VRCharacterComponent)
 	{
+		VRCharacterComponent->SetComponentOwner(this);
 		VRCharacterComponent->SetVRCharacterCamera(VRCamera, VRCameraRoot);
-		VRCharacterComponent->SetVRCharacterCapsule(BodyCollision, VRForwardVector);
+		VRCharacterComponent->SetVRCharacterCapsule(BodyCollision);
 	}
 }
 
