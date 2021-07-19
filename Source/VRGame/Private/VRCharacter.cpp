@@ -97,7 +97,7 @@ AVRCharacter::AVRCharacter()
 void AVRCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	BodyCollision->bHiddenInGame = true;
+	//BodyCollision->bHiddenInGame = true;
 
 	SpawnHands();
 

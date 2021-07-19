@@ -29,6 +29,12 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	/* Get the VRCharacter Component */
+	UFUNCTION(BlueprintCallable)
+	UVRCharacterComponent* GetVRCharacterComponent()
+	{
+		return VRCharacterComponent;
+	}
 protected:
 	/*================
 	Protected Variables
@@ -37,6 +43,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "PIDController") float Integral = 0.0f;
 	UPROPERTY(EditAnywhere, Category = "PIDController") float Derivative = 0.05f;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Camera")
+		class UCameraComponent* VRCamera;
 private:
 	/*================
 	Movement Variables
@@ -61,7 +69,8 @@ private:
 	==================*/
 	class USceneComponent* RootComp;
 	class USceneComponent* VRCameraRoot;
-	class UCameraComponent* VRCamera;
+
+	
 	UPROPERTY(VisibleAnywhere, Category = "BodyCollision")
 		class UCapsuleComponent* BodyCollision;
 	//class UMotionControllerComponent* LeftMotionController;

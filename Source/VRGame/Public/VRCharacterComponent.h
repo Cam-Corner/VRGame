@@ -72,6 +72,37 @@ public:
 
 	/* Set the capsule component this actor component should use */
 	void SetXRotationValue(float Value) { CurrentXRotationValue = Value; }
+	
+	/* save the users current settings */
+	UFUNCTION(BlueprintCallable)
+	void SaveSettings();
+
+	/* load the usres current settings */
+	void LoadSettings();
+
+	/* save the users current settings */
+	UFUNCTION(BlueprintCallable)
+		void GetControlSettings(bool& GetbUsingSmoothTurning, float& GetSmoothTurningSensitivity, float& GetSnapTurningAmount)
+	{
+		GetbUsingSmoothTurning = bSmoothTurning;
+		GetSmoothTurningSensitivity = SmoothTurningSensitivity;
+		GetSnapTurningAmount = SnapTurningAmount;
+	}
+/*======
+Functions to change default variables
+=======*/
+public:
+	/* Set wether we should use smooth turning if true, or if false we use snap turning */
+	UFUNCTION(BlueprintCallable)
+	void SetShouldUseSmoothTurning(bool Value) { bSmoothTurning = Value; }
+
+	/* set the smooth turning sensitivity */
+	UFUNCTION(BlueprintCallable)
+	void SetSmoothTurningSensitivity(float Value) { SmoothTurningSensitivity = Value; }
+
+	/* set the snap turning amount */
+	UFUNCTION(BlueprintCallable)
+	void SetSnapTurnAmount(float Value) { SnapTurningAmount = Value; }
 
 /*======
 Private Functions
@@ -87,7 +118,6 @@ private:
 	void ScaleCollisionWithPlayer();
 
 	/* Move Collision To HMD headset */
-
 	void MoveCollisionToHMD();
 
 	/* check how far the HMD is from the collision */
@@ -180,4 +210,10 @@ private:
 
 	/* check if the already applied the snap turning value */
 	float bDoneSnapTurning = false;
+
+	/* The name of the slot to save the settings */
+	FString SaveSlotName{ "ControlSettingsSaveGame" };
+
+	/* the user index to save the settings */
+	uint32 UserIndex = 0;
 };

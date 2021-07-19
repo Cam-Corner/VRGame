@@ -5,6 +5,8 @@
 #include "Camera/CameraComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "ControlSettingsSaveGame.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values for this component's properties
 UVRCharacterComponent::UVRCharacterComponent()
@@ -22,7 +24,7 @@ void UVRCharacterComponent::BeginPlay()
 	Super::BeginPlay();
 	CurrentMovementMode = EMovementModes::EMM_Walk;
 
-
+	LoadSettings();
 	// ...
 	
 }
@@ -112,6 +114,33 @@ void UVRCharacterComponent::SetXYMovementDirection(FVector2D Dir)
 	}
 }
 
+void UVRCharacterComponent::SaveSettings()
+{
+	if (UControlSettingsSaveGame* SG =
+		Cast<UControlSettingsSaveGame>(UGameplayStatics::CreateSaveGameObject(UControlSettingsSaveGame::StaticClass())))
+	{
+		SG->bUsingSmoothTurning = bSmoothTurning;
+		SG->SmoothTurningSensitivity = SmoothTurningSensitivity;
+		SG->SnapTurningAmount = SnapTurningAmount;
+
+		if (UGameplayStatics::SaveGameToSlot(SG, SaveSlotName, UserIndex))
+		{
+
+		}
+	}
+}
+
+void UVRCharacterComponent::LoadSettings()
+{
+	if (UControlSettingsSaveGame* LG =
+		Cast<UControlSettingsSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, UserIndex)))
+	{
+		bSmoothTurning = LG->bUsingSmoothTurning;
+		SmoothTurningSensitivity = LG->SmoothTurningSensitivity;
+		SnapTurningAmount = LG->SnapTurningAmount;
+	}
+}
+
 void UVRCharacterComponent::HandleMovement(float DeltaTime)
 {
 	if (!VRCharacterCapsule || !VRCharacterCamera || !VRCharacterCameraOrigin || !ComponentOwner)
@@ -144,7 +173,7 @@ void UVRCharacterComponent::HandleMovement(float DeltaTime)
 		FHitResult FloorHit;
 		FVector StartLocation = VRCharacterCapsule->GetComponentLocation();
 		float SphereRadius = VRCharacterCapsule->GetScaledCapsuleRadius() - 2;
-		FVector EndLocation = StartLocation - FVector(0, 0, (VRCharacterCapsule->GetScaledCapsuleHalfHeight() + 1.5f));
+		FVector EndLocation = StartLocation - FVector(0, 0, (VRCharacterCapsule->GetScaledCapsuleHalfHeight() + 2.5f));
 		FCollisionShape SphereTrace;
 		FCollisionQueryParams SphereParams;
 		SphereParams.AddIgnoredActor(ComponentOwner);
@@ -153,7 +182,7 @@ void UVRCharacterComponent::HandleMovement(float DeltaTime)
 
 		bool bHitFloor = GetWorld()->SweepSingleByChannel(FloorHit, StartLocation, EndLocation,
 			VRCharacterCapsule->GetComponentQuat(),
-			ECollisionChannel::ECC_Visibility,
+			ECollisionChannel::ECC_WorldDynamic,
 			SphereTrace, SphereParams);
 
 		if (!bHitFloor)
@@ -172,11 +201,11 @@ void UVRCharacterComponent::HandleMovement(float DeltaTime)
 		}
 		else
 		{
-			bool bFoundSpot = GetWorld()->FindTeleportSpot(ComponentOwner, EndLocation, VRCharacterCapsule->GetComponentRotation());
+			bool bFoundSpot = GetWorld()->FindTeleportSpot(ComponentOwner, FloorHit.Location, VRCharacterCapsule->GetComponentRotation());
 
 			if (bFoundSpot)
 			{
-				ComponentOwner->SetActorLocation(EndLocation);
+				ComponentOwner->SetActorLocation(FloorHit.Location);
 				//ZRecenter();
 				GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Yellow, "GRAVITY", true);
 			}
