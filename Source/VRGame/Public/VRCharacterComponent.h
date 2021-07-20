@@ -128,60 +128,69 @@ private:
 	* if it hits something then it means the camera isnt in a sutable location
 	*/
 	void CheckToSeeIfCameraIsInsideObject();
+
 /*=======
 Private UPROPERTY() Variables
 =========*/
 private:
 	/* The slow walk movement speed */
-	UPROPERTY(EditAnywhere, Category = "Test Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Test Settings")
 		bool bUseSweepMovement = false;
 
 	/* The slow walk movement speed */
-	UPROPERTY(EditAnywhere, Category = "Movement Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Movement Settings")
 		float SlowWalkMovementSpeed = 250;
 
 	/* The walk movement speed */
-	UPROPERTY(EditAnywhere, Category = "Movement Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Movement Settings")
 		float WalkMovementSpeed = 600;
 
 	/* The Run movement speed */
-	UPROPERTY(EditAnywhere, Category = "Movement Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Movement Settings")
 		float RunMovementSpeed = 1000;
 
 	/* The Gravity speed */
-	UPROPERTY(EditAnywhere, Category = "Movement Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Movement Settings")
 		float GravitySpeed = 600;
 
 
 	/* set a deadzone for the thumbsticks */
-	UPROPERTY(EditAnywhere, Category = "Camera Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Camera Settings")
 	float RotationThumbstickDeadZone = 0.25f;
 
 	/* Speed of the smooth camera turning */
-	UPROPERTY(EditAnywhere, Category = "Camera Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Camera Settings")
 		float SmoothTurningSensitivity = 15;
 
 	/* Snap turning amount */
-	UPROPERTY(EditAnywhere, Category = "Camera Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Camera Settings")
 		float SnapTurningAmount = 45;
 
 	/* if true we use smooth turning || if false we use snap turning */
-	UPROPERTY(EditAnywhere, Category = "Camera Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Camera Settings")
 		bool bSmoothTurning = true;
 
 	/* Max Distance the camera can be from the collision */
-	UPROPERTY(EditAnywhere, Category = "Camera Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Camera Settings")
 		float MaxCameraDistanceFromCollision = 20.0f;
 
 	/* Max Distance the camera can be from the collision */
-	UPROPERTY(EditAnywhere, Category = "Camera Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Camera Settings")
 	float CameraSphereCollisionRadius = 10.0f;
 
 	/* If true we recenter the camera back to the collision capsule when the camera is in an unsutable location
 	* If false then we just move the camera back to a location that is sutable
 	*/
-	UPROPERTY(EditAnywhere, Category = "Camera Settings")
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Camera Settings")
 	bool SnapCameraBackWhenInWrongLocation = false;
+
+	/* what is the max angle the character can walk up */
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Slopes and Steps")
+	float MaxWalkableSlopeAngle = 45.0f;
+
+	/* what is the max height that the character can auto step onto */
+	UPROPERTY(EditAnywhere, Category = "VRCharacter: Slopes and Steps")
+	float MaxStepupHeight = 45.0f;
 
 /*======
 Private Components
