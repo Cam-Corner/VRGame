@@ -34,12 +34,11 @@ void UVRCharacterComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	//HandleMovement(DeltaTime);
 	ScaleCollisionWithPlayer();
 	HandleMovement(DeltaTime);
 	MoveCollisionToHMD();
 	SmoothRotation(DeltaTime);
-
+	CheckToSeeIfCameraIsInsideObject();
 	// ...
 }
 
@@ -65,8 +64,8 @@ void UVRCharacterComponent::ZRecenter()
 	FVector MoveOffset;
 	MoveOffset.X = 0;
 	MoveOffset.Y = 0;
-	MoveOffset.Z = VRCharacterCameraOrigin->GetComponentLocation().Z -
-		(VRCharacterCapsule->GetComponentLocation().Z - VRCharacterCapsule->GetScaledCapsuleHalfHeight());
+	MoveOffset.Z = (VRCharacterCapsule->GetComponentLocation().Z - VRCharacterCapsule->GetScaledCapsuleHalfHeight())
+		 - VRCharacterCameraOrigin->GetComponentLocation().Z;
 
 	VRCharacterCameraOrigin->AddWorldOffset(MoveOffset);
 }
@@ -155,18 +154,40 @@ void UVRCharacterComponent::HandleMovement(float DeltaTime)
 	{
 		if (!XYMovement.IsZero())
 		{
-			XYRecenter();
-			FVector MovetoLocation = ComponentOwner->GetActorLocation() + (XYMovement * DeltaTime);
-
-			bool bFoundSpot = GetWorld()->FindTeleportSpot(ComponentOwner, MovetoLocation, VRCharacterCapsule->GetComponentRotation());
-
-			if (bFoundSpot)
+			if (bUseSweepMovement)
 			{
-				ComponentOwner->SetActorLocation(MovetoLocation);
+				FHitResult Hit;
+				FVector Offset = XYMovement * DeltaTime;
+				VRCharacterCapsule->AddWorldOffset(Offset, true, &Hit);
+				
+				if (Hit.bBlockingHit)
+				{
+					FVector Normal2D = Hit.Normal;
+					Normal2D.Z = 0;
+					Normal2D.Normalize();
+
+					Offset = FVector::VectorPlaneProject(Offset, Normal2D);
+					Offset = Offset * (1 - Hit.Time);
+					VRCharacterCapsule->AddWorldOffset(Offset, true);
+				}
+
 				XYRecenter();
+			}
+			else
+			{
+				FVector MovetoLocation = ComponentOwner->GetActorLocation() + (XYMovement * DeltaTime);
+
+				bool bFoundSpot = GetWorld()->FindTeleportSpot(ComponentOwner, MovetoLocation, VRCharacterCapsule->GetComponentRotation());
+
+				if (bFoundSpot)
+				{
+					ComponentOwner->SetActorLocation(MovetoLocation);
+					XYRecenter();
+				}
 			}
 		}
 	}
+
 
 	//Check for the floor and apply gravity if needed
 	{
@@ -185,29 +206,61 @@ void UVRCharacterComponent::HandleMovement(float DeltaTime)
 			ECollisionChannel::ECC_WorldDynamic,
 			SphereTrace, SphereParams);
 
-		if (!bHitFloor)
+		if(bUseSweepMovement)
 		{
-			FVector MovetoLocation = ComponentOwner->GetActorLocation() +
-				(FVector(0, 0, 1) * (GravitySpeed * DeltaTime));
-
-			bool bFoundSpot = GetWorld()->FindTeleportSpot(ComponentOwner, MovetoLocation, VRCharacterCapsule->GetComponentRotation());
-
-			if (bFoundSpot)
+			if (!bHitFloor)
 			{
-				ComponentOwner->SetActorLocation(MovetoLocation);
-				//ZRecenter();
-				GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Yellow, "GRAVITY", true);
+				bGrounded = false;
+				FVector Offset = FVector(0, 0, 1) *  (GravitySpeed * DeltaTime);
+				VRCharacterCapsule->AddWorldOffset(Offset, true);
+				ZRecenter();
+			}
+			else if(!bGrounded)
+			{
+				bGrounded = true;
+				FVector Offset = FVector(0, 0, 1) * (EndLocation.Z - StartLocation.Z);
+				VRCharacterCapsule->AddWorldOffset(Offset, true);
+				ZRecenter();
 			}
 		}
 		else
 		{
-			bool bFoundSpot = GetWorld()->FindTeleportSpot(ComponentOwner, FloorHit.Location, VRCharacterCapsule->GetComponentRotation());
-
-			if (bFoundSpot)
+			if (!bHitFloor)
 			{
-				ComponentOwner->SetActorLocation(FloorHit.Location);
-				//ZRecenter();
-				GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Yellow, "GRAVITY", true);
+				FVector MovetoLocation = ComponentOwner->GetActorLocation() +
+					(FVector(0, 0, 1) * (GravitySpeed * DeltaTime));
+
+				bool bFoundSpot = GetWorld()->FindTeleportSpot(ComponentOwner, MovetoLocation, VRCharacterCapsule->GetComponentRotation());
+
+				if (bFoundSpot)
+				{
+					if (bUseSweepMovement)
+					{
+						FVector Offset = MovetoLocation - ComponentOwner->GetActorLocation();
+						VRCharacterCapsule->AddWorldOffset(Offset, true);
+					}
+					else
+						ComponentOwner->SetActorLocation(MovetoLocation);
+					//ZRecenter();
+					GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Yellow, "GRAVITY", true);
+				}
+			}
+			else
+			{
+				bool bFoundSpot = GetWorld()->FindTeleportSpot(ComponentOwner, FloorHit.Location, VRCharacterCapsule->GetComponentRotation());
+
+				if (bFoundSpot)
+				{
+					if (bUseSweepMovement)
+					{
+						FVector Offset = FloorHit.Location - ComponentOwner->GetActorLocation();
+						VRCharacterCapsule->AddWorldOffset(Offset, true);
+					}
+					else
+						ComponentOwner->SetActorLocation(FloorHit.Location);
+					//ZRecenter();
+					GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Yellow, "GRAVITY", true);
+				}
 			}
 		}
 
@@ -298,6 +351,7 @@ void UVRCharacterComponent::MoveCollisionToHMD()
 		return;
 
 	FVector ActorLocation = ComponentOwner->GetActorLocation();
+	FVector CapsuleLocation = VRCharacterCapsule->GetComponentLocation();
 
 	FVector HMDLocation = VRCharacterCamera->GetComponentLocation();
 	HMDLocation.Z = ActorLocation.Z;
@@ -307,14 +361,24 @@ void UVRCharacterComponent::MoveCollisionToHMD()
 
 	if (!XYMovement.IsZero())
 	{
-		bool bFoundSpot = GetWorld()->FindTeleportSpot(ComponentOwner, MoveToLoc, VRCharacterCapsule->GetComponentRotation());
-		if (bFoundSpot)
+		if (bUseSweepMovement)
 		{
-			FVector OldOriginLoc = VRCharacterCameraOrigin->GetComponentLocation();
-			ComponentOwner->SetActorLocation(MoveToLoc);
-			FVector NewOriginLoc = VRCharacterCameraOrigin->GetComponentLocation();
-			NewOriginLoc -=  NewOriginLoc - OldOriginLoc;
-			VRCharacterCameraOrigin->SetWorldLocation(NewOriginLoc);
+			FVector Offset = HMDLocation - CapsuleLocation;
+			Offset.Z = 0;
+			VRCharacterCapsule->AddWorldOffset(Offset, true);		
+			XYRecenter();
+		}
+		else
+		{
+			bool bFoundSpot = GetWorld()->FindTeleportSpot(ComponentOwner, MoveToLoc, VRCharacterCapsule->GetComponentRotation());
+			if (bFoundSpot)
+			{
+				FVector OldOriginLoc = VRCharacterCameraOrigin->GetComponentLocation();
+				ComponentOwner->SetActorLocation(MoveToLoc);
+				FVector NewOriginLoc = VRCharacterCameraOrigin->GetComponentLocation();
+				NewOriginLoc -= NewOriginLoc - OldOriginLoc;
+				VRCharacterCameraOrigin->SetWorldLocation(NewOriginLoc);
+			}
 		}
 	}
 	else
@@ -330,6 +394,25 @@ void UVRCharacterComponent::MoveCollisionToHMD()
 		FVector OldOriginLoc = VRCharacterCameraOrigin->GetComponentLocation();
 
 		//sweep collision from actor location to HMD location
+		if (bUseSweepMovement)
+		{
+			FHitResult Hit;
+			FVector Offset = HMDLocation - CapsuleLocation;
+			Offset.Z = 0;
+			VRCharacterCapsule->AddWorldOffset(Offset, true, &Hit);
+
+			if (Hit.bBlockingHit)
+			{
+				FVector Normal2D = Hit.Normal;
+				Normal2D.Z = 0;
+				Normal2D.Normalize();
+
+				Offset = FVector::VectorPlaneProject(Offset, Normal2D);
+				Offset = Offset * (1 - Hit.Time);
+				VRCharacterCapsule->AddWorldOffset(Offset, true);
+			}
+		}
+		else
 		{
 			FHitResult ObjectHit;
 			FVector StartLocation = VRCharacterCapsule->GetComponentLocation();
@@ -353,6 +436,7 @@ void UVRCharacterComponent::MoveCollisionToHMD()
 		
 			if (bHitSomething)
 			{
+
 				bool bFoundSpot = GetWorld()->FindTeleportSpot(ComponentOwner, ObjectHit.Location, VRCharacterCapsule->GetComponentRotation());
 				
 				if(bFoundSpot)
@@ -377,14 +461,68 @@ void UVRCharacterComponent::MoveCollisionToHMD()
 
 void UVRCharacterComponent::CheckHMDDistanceFromCollision()
 {
-	if (!VRCharacterCapsule || !VRCharacterCamera)
+	if (!VRCharacterCapsule || !VRCharacterCamera || !VRCharacterCameraOrigin)
 		return;
 
 	FVector StartLocation = VRCharacterCapsule->GetComponentLocation();
 	FVector EndLocation = VRCharacterCamera->GetComponentLocation();
 	StartLocation.Z = EndLocation.Z;
 
-	if (FVector::Distance(StartLocation, EndLocation) > MaxCameraDistanceFromCollision)
-		XYRecenter();
+	float Distance = FVector::Distance(StartLocation, EndLocation);
+	if (Distance > MaxCameraDistanceFromCollision)
+	{
+		if (SnapCameraBackWhenInWrongLocation)
+		{
+			XYRecenter();
+			//ZRecenter();
+		}
+		else
+		{
+			FVector Dir = StartLocation - EndLocation;
+			Dir.Normalize();
+			
+			float Offset = Distance - MaxCameraDistanceFromCollision;
+			VRCharacterCameraOrigin->AddWorldOffset(Dir * Offset);
+
+		}
+	}
+}
+
+void UVRCharacterComponent::CheckToSeeIfCameraIsInsideObject()
+{
+	if (!VRCharacterCapsule || !VRCharacterCamera || !VRCharacterCameraOrigin || !ComponentOwner)
+		return;
+
+	FHitResult Hit;
+	FVector StartLocation = VRCharacterCapsule->GetComponentLocation();
+	StartLocation.Z += VRCharacterCapsule->GetScaledCapsuleHalfHeight();
+	float SphereRadius = CameraSphereCollisionRadius;
+	FVector EndLocation =  VRCharacterCamera->GetComponentLocation();
+	FCollisionShape SphereTrace;
+	FCollisionQueryParams SphereParams;
+	SphereParams.AddIgnoredActor(ComponentOwner);
+
+	SphereTrace.SetSphere(SphereRadius);
+
+	bool bHitSomething = GetWorld()->SweepSingleByChannel(Hit, StartLocation, EndLocation,
+		VRCharacterCapsule->GetComponentQuat(),
+		ECollisionChannel::ECC_WorldDynamic,
+		SphereTrace, SphereParams);
+
+	if (bHitSomething)
+	{
+		if (SnapCameraBackWhenInWrongLocation)
+		{
+			XYRecenter();
+			//ZRecenter();
+		}
+		else
+		{
+			FVector Offset = Hit.Location - VRCharacterCamera->GetComponentLocation();
+			Offset.Z = 0;
+			VRCharacterCameraOrigin->AddWorldOffset(Offset);
+		}
+
+	}
 }
 

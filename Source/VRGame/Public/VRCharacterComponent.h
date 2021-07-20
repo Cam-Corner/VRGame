@@ -123,11 +123,19 @@ private:
 	/* check how far the HMD is from the collision */
 	void CheckHMDDistanceFromCollision();
 
-
+	/* Checks to see if the camera is inside an object
+	* It does it by doing a small sphere sweep from the top of the capsule to the camera
+	* if it hits something then it means the camera isnt in a sutable location
+	*/
+	void CheckToSeeIfCameraIsInsideObject();
 /*=======
 Private UPROPERTY() Variables
 =========*/
 private:
+	/* The slow walk movement speed */
+	UPROPERTY(EditAnywhere, Category = "Test Settings")
+		bool bUseSweepMovement = false;
+
 	/* The slow walk movement speed */
 	UPROPERTY(EditAnywhere, Category = "Movement Settings")
 		float SlowWalkMovementSpeed = 250;
@@ -164,6 +172,16 @@ private:
 	/* Max Distance the camera can be from the collision */
 	UPROPERTY(EditAnywhere, Category = "Camera Settings")
 		float MaxCameraDistanceFromCollision = 20.0f;
+
+	/* Max Distance the camera can be from the collision */
+	UPROPERTY(EditAnywhere, Category = "Camera Settings")
+	float CameraSphereCollisionRadius = 10.0f;
+
+	/* If true we recenter the camera back to the collision capsule when the camera is in an unsutable location
+	* If false then we just move the camera back to a location that is sutable
+	*/
+	UPROPERTY(EditAnywhere, Category = "Camera Settings")
+	bool SnapCameraBackWhenInWrongLocation = false;
 
 /*======
 Private Components
@@ -210,6 +228,9 @@ private:
 
 	/* check if the already applied the snap turning value */
 	float bDoneSnapTurning = false;
+
+	/* The the player is grounded or not */
+	bool bGrounded = false;
 
 	/* The name of the slot to save the settings */
 	FString SaveSlotName{ "ControlSettingsSaveGame" };
