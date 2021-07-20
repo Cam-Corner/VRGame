@@ -36,7 +36,7 @@ void UVRCharacterComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	//ScaleCollisionWithPlayer();
+	ScaleCollisionWithPlayer();
 	HandleMovement(DeltaTime);
 	MoveCollisionToHMD();
 	SmoothRotation(DeltaTime);
