@@ -129,6 +129,28 @@ private:
 	*/
 	void CheckToSeeIfCameraIsInsideObject();
 
+
+	/** Moves the player collision capsule around the world 
+	* Collision is handled by sweeping the capsule by the given offet (using AddWorldOffset)
+	* @param Dir	is expected to be a unit vector and should be the direction you want to move the capsule
+	* @param offset is used to determind the move amount
+	*/
+	void MovePlayerCapsule(FVector Dir, float OffsetAmount);
+
+	/** Gets the new direction when moving up a slope
+	* @param CurrentDir should be a unit vector and is the current movement direction
+	* @param SlopeDir should be a unit vector and is the slopes angle direction
+	* @param RotateAxis should be a unit vector and is the axis the dir gets rotated on
+	* @RETURN returns the new direction that the player should move in
+	*/
+	FVector GetSlopeMovementDirection(FVector CurrentDir, FVector SlopeDir, FVector RotateAxis);
+
+	/* Apply Gravity to the player */
+	void ApplyGravity(float DeltaTime);
+
+	/* Do a sphere cast */
+	void SphereCast(FHitResult& Result, FVector StartLoc, FVector EndLoc, float SphereRadius);
+
 /*=======
 Private UPROPERTY() Variables
 =========*/
