@@ -1,17 +1,17 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "AutoLoadingGun.h"
+#include "Items/Guns/AutoLoadingGun.h"
 #include "DrawDebugHelpers.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BoxComponent.h"
-#include "GunMagazine.h"
+#include "Items/Guns/GunMagazine.h"
 #include "Utility/ExtraMaths.h"
 #include "Components/AudioComponent.h"
 #include "Sound/SoundCue.h"
 #include "Kismet/GameplayStatics.h"
 #include "VRGameInstance.h"
-#include "AudioManager.h"
+#include "Audio/AudioManager.h"
 
 AAutoLoadingGun::AAutoLoadingGun()
 {

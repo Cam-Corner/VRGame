@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "VRItem.h"
-#include "VRGun.h"
+#include "Items/VRItem.h"
+#include "Items/Guns/VRGun.h"
 #include "GunMagazine.generated.h"
 
 

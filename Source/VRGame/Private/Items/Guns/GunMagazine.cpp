@@ -1,10 +1,10 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "GunMagazine.h"
+#include "Items/Guns/GunMagazine.h"
 #include "Components/BoxComponent.h"
-#include "VRGun.h"
-#include "AutoLoadingGun.h"
+#include "Items/Guns/VRGun.h"
+#include "Items/Guns/AutoLoadingGun.h"
 
 AGunMagazine::AGunMagazine()
 {

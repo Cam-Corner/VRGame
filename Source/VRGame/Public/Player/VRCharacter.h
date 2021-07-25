@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
-#include "VRHand.h"
+#include "Player/VRHand.h"
 #include "VRCharacter.generated.h"
 
 class UVRCharacterComponent;
@@ -108,4 +108,8 @@ private:
 
 	AVRItem* LeftHandItem = NULL;
 	AVRItem* RightHandItem = NULL;*/
+
+//==========================
+	UPROPERTY(EditAnywhere, Category = "Testing")
+		bool bNonVRTesting = false;
 };

@@ -10,6 +10,15 @@ class UCameraComponent;
 class UCapsuleComponent;
 class USceneComponent;
 
+USTRUCT()
+struct FPlayerMove
+{
+	GENERATED_BODY()
+
+	float DeltaTime;
+
+};
+
 UENUM()
 enum EMovementModes
 {
@@ -150,6 +159,16 @@ private:
 
 	/* Do a sphere cast */
 	void SphereCast(FHitResult& Result, FVector StartLoc, FVector EndLoc, float SphereRadius);
+
+/*=========
+Networking Functions
+=======*/
+public:
+	UFUNCTION(Server, UnReliable)
+	void Server_SendMove(FVector NewLocation);
+
+	UFUNCTION(NetMulticast, UnReliable)
+	void NetMulticast_SendMove(FVector NewLocation);
 
 /*=======
 Private UPROPERTY() Variables

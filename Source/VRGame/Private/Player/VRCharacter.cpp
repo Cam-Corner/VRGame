@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "VRCharacter.h"
+#include "Player/VRCharacter.h"
 #include "Components/SceneComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -12,14 +12,14 @@
 #include "Engine/World.h"
 #include "VRGameInstance.h"
 #include "Kismet/GameplayStatics.h"
-#include "VRCharacterComponent.h"
+#include "Player/VRCharacterComponent.h"
 
 // Sets default values
 AVRCharacter::AVRCharacter()
 {
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
+	SetReplicates(true);
 	/*===========================
 	Initialize Root Component
 	=============================*/
@@ -112,6 +112,9 @@ void AVRCharacter::BeginPlay()
 		VRCharacterComponent->SetVRCharacterCamera(VRCamera, VRCameraRoot);
 		VRCharacterComponent->SetVRCharacterCapsule(BodyCollision);
 	}
+
+	if (bNonVRTesting)
+		VRCamera->AddWorldOffset(FVector(0, 0, 100));
 }
 
 void AVRCharacter::SpawnHands()

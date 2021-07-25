@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "VRItem.h"
+#include "Items/VRItem.h"
 #include "VRWeapon.generated.h"
 
 

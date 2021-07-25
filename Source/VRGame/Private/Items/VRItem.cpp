@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "VRItem.h"
+#include "Items/VRItem.h"
 #include "Components/StaticMeshComponent.h"
 
 // Sets default values
