@@ -1,14 +1,16 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "VRCharacterComponent.h"
+#include "Player/VRCharacterComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "ControlSettingsSaveGame.h"
+#include "Saving/ControlSettingsSaveGame.h"
 #include "Kismet/GameplayStatics.h"
 #include "Utility/ExtraMaths.h"
 #include "DrawDebugHelpers.h"
+#include "Networking/NetworkingHelpers.h"
+#include "Player/VRCharacter.h"
 
 // Sets default values for this component's properties
 UVRCharacterComponent::UVRCharacterComponent()
@@ -16,7 +18,7 @@ UVRCharacterComponent::UVRCharacterComponent()
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
-
+	SetIsReplicated(true);
 	// ...
 }
 
@@ -27,8 +29,9 @@ void UVRCharacterComponent::BeginPlay()
 	CurrentMovementMode = EMovementModes::EMM_Walk;
 
 	LoadSettings();
+
 	// ...
-	
+
 }
 
 // Called every frame
@@ -36,12 +39,31 @@ void UVRCharacterComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	ScaleCollisionWithPlayer();
-	MoveCollisionToHMD();
-	HandleMovement(DeltaTime);
-	SmoothRotation(DeltaTime);
-	CheckToSeeIfCameraIsInsideObject();
-	ApplyGravity(DeltaTime);
+	ENetRole Role = GetOwnerRole();
+	if (AVRCharacter* VRC = Cast<AVRCharacter>(GetOwner()))
+	{
+		if(VRC->IsLocallyControlled())
+		{
+			//ScaleCollisionWithPlayer();
+			//MoveCollisionToHMD();
+			HandleMovement(DeltaTime);
+			SmoothRotation(DeltaTime);
+			//CheckToSeeIfCameraIsInsideObject();
+			//ApplyGravity(DeltaTime);
+
+			Server_SendMove(VRCharacterCamera->GetComponentLocation());
+		}
+	}
+	//{
+		//ScaleCollisionWithPlayer();
+		//MoveCollisionToHMD();
+		//HandleMovement(DeltaTime);
+		//SmoothRotation(DeltaTime);
+		//CheckToSeeIfCameraIsInsideObject();
+		//ApplyGravity(DeltaTime);
+
+		//Server_SendMove(VRCharacterCamera->GetComponentLocation());
+	//}
 	// ...
 }
 
@@ -656,14 +678,19 @@ void UVRCharacterComponent::MovePlayerCapsule(FVector Dir, float OffsetAmount)
 							float RotateAmount = 90 -
 								(ExtraMaths::GetAngleOfTwoVectors(PPDir, FVector(0, 0, 1)) - FloorAngle);
 
-							FVector RotatedF = PlaneProject.RotateAngleAxis(-RotateAmount, 
-								FloorHit.Actor->GetActorRightVector());
+							FVector RotatedF = PlaneProject.RotateAngleAxis(-RotateAmount, RotateAxis);
 							Offset = RotatedF * (1 - Hit.Time);
 							bZRecenter = true;
+
+							DrawDebugLine(GetWorld(), VRCharacterCapsule->GetComponentLocation(),
+								VRCharacterCapsule->GetComponentLocation() + Offset, FColor::Blue,
+								false, 50.0f);
 						}
 					}
 				}
-	
+
+				
+
 				VRCharacterCapsule->AddWorldOffset(Offset, true);
 	
 				if (bZRecenter)
@@ -675,9 +702,9 @@ void UVRCharacterComponent::MovePlayerCapsule(FVector Dir, float OffsetAmount)
 				FVector NewDir = GetSlopeMovementDirection(Dir, Hit.ImpactNormal, Hit.Actor->GetActorRightVector());
 				FVector NewOffset = (NewDir * OffsetAmount) * (1 - Hit.Time);
 
-				DrawDebugLine(GetWorld(), VRCharacterCapsule->GetComponentLocation(),
+				/*DrawDebugLine(GetWorld(), VRCharacterCapsule->GetComponentLocation(),
 					VRCharacterCapsule->GetComponentLocation() + NewOffset, FColor::Red,
-					false, 25.0f);
+					false, 0.5f);*/
 
 				VRCharacterCapsule->AddWorldOffset(NewOffset, true);
 				ZRecenter();			
@@ -806,8 +833,6 @@ void UVRCharacterComponent::ApplyGravity(float DeltaTime)
 			}
 		}
 	}
-
-
 }
 
 void UVRCharacterComponent::SphereCast(FHitResult& Result, FVector StartLoc, FVector EndLoc, float SphereRadius)
@@ -820,4 +845,21 @@ void UVRCharacterComponent::SphereCast(FHitResult& Result, FVector StartLoc, FVe
 
 	GetWorld()->SweepSingleByChannel(Result, StartLoc, EndLoc, VRCharacterCapsule->GetComponentQuat(),
 		ECollisionChannel::ECC_WorldDynamic, SphereTrace, SphereParams);
+}
+
+void UVRCharacterComponent::NetMulticast_SendMove_Implementation(FVector NewLocation)
+{
+	if (!VRCharacterCapsule || !VRCharacterCamera || !VRCharacterCameraOrigin || !ComponentOwner)
+		return;
+
+	VRCharacterCapsule->SetWorldLocation(NewLocation);
+}
+
+void UVRCharacterComponent::Server_SendMove_Implementation(FVector NewLocation)
+{
+	if (!VRCharacterCapsule || !VRCharacterCamera || !VRCharacterCameraOrigin || !ComponentOwner)
+		return;
+
+	VRCharacterCapsule->SetWorldLocation(NewLocation);
+	NetMulticast_SendMove(NewLocation);
 }

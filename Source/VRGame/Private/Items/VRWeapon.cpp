@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "VRWeapon.h"
+#include "Items/VRWeapon.h"
 #include "Components/StaticMeshComponent.h"
 
 // Sets default values

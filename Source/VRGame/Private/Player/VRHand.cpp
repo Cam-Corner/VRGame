@@ -1,12 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "VRHand.h"
+#include "Player/VRHand.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
-#include "VRItem.h"
-#include "AutoLoadingGun.h"
+#include "Items/VRItem.h"
+#include "Items/Guns/AutoLoadingGun.h"
 #include "Components/WidgetComponent.h"
 #include "Blueprint/UserWidget.h"
 

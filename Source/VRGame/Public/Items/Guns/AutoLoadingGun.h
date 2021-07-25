@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "VRGun.h"
+#include "Items/Guns/VRGun.h"
 #include "AutoLoadingGun.generated.h"
 
 class AGunMagazine;

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "VRHand.h"
+#include "Player/VRHand.h"
 #include "VRItem.generated.h"
 
 UCLASS()

@@ -6,8 +6,11 @@ public class VRGame : ModuleRules
 {
 	public VRGame(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-	
+		//PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		PCHUsage = PCHUsageMode.UseSharedPCHs;
+
+		//PrivatePCHHeaderFile = "Public/Networking/NetworkingHelpers.h";
+
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "UMG" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "HeadMountedDisplay" });
