@@ -18,7 +18,9 @@ void UUW_HostJoinMenu::NativeConstruct()
 
 void UUW_HostJoinMenu::JoinServer(FName IP)
 {
-	UGameplayStatics::OpenLevel(GetWorld(), IP, true);
+	//UGameplayStatics::OpenLevel(GetWorld(), IP, true);
+	FString Open = "open " + IP.ToString();
+	UGameplayStatics::GetPlayerController(GetWorld(), 0)->ConsoleCommand(Open);
 }
 
 void UUW_HostJoinMenu::HostServer()
