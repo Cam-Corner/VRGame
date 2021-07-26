@@ -10,13 +10,37 @@ class UCameraComponent;
 class UCapsuleComponent;
 class USceneComponent;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogAVRCharacterComponent, Log, All);
+
 USTRUCT()
 struct FPlayerMove
 {
 	GENERATED_BODY()
 
 	float DeltaTime;
+	FVector Dir;
+	FVector StartLocation;
+	FVector EndLocation;
+};
 
+USTRUCT()
+struct FClientSide_Prediction
+{
+	GENERATED_BODY()
+	
+	FVector Dir;
+	FVector LastServerLocation;
+	float LastServerWorldDelta;
+	bool bStillMoving;
+
+	FString Moving = bStillMoving ? "true" : "false";
+
+	FString ToString()
+	{
+		return "Dir: " + Dir.ToCompactString() + " | LastServerLoc: " + LastServerLocation.ToCompactString()
+			+ " | LastServerWorldDelta: " + FString::SanitizeFloat(LastServerWorldDelta) +
+			" | StillMoving: " + Moving;
+	}
 };
 
 UENUM()
@@ -43,6 +67,9 @@ protected:
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	UFUNCTION(BlueprintCallable)
+		void SetWalkSpeed(float Value) { WalkMovementSpeed = Value; }
 
 /*======
 Public Functions
@@ -117,6 +144,21 @@ public:
 Private Functions
 =======*/
 private:
+	/*Handle Networked Movement*/
+	void NetworkedMovement(float DeltaTime);
+
+	/* Movement for locally controlled pawn */
+	void LocalMovement(float DeltaTime);
+
+	/* Movement for simulated proxy */
+	void SimulatedProxyMovement(float DeltaTime);
+
+	/* Movement for simulated proxy */
+	void AuthorativeMovement(float DeltaTime);
+
+	/* Movement for simulated proxy */
+	void WorkOutSimulatedProxyError();
+
 	/*Handles the final movement of the character*/
 	void HandleMovement(float DeltaTime);
 
@@ -165,10 +207,16 @@ Networking Functions
 =======*/
 public:
 	UFUNCTION(Server, UnReliable)
-	void Server_SendMove(FVector NewLocation);
+	void Server_SendMove(FVector Dir, float DeltaTime, FVector EndLocation);
 
 	UFUNCTION(NetMulticast, UnReliable)
-	void NetMulticast_SendMove(FVector NewLocation);
+	void NetMulticast_SendMove(FVector Dir,
+	FVector LastServerLocation,
+	float LastServerWorldDelta,
+	bool bStillMoving);
+
+	UFUNCTION(Client, Unreliable)
+	void Client_SetLocation(FVector Location);
 
 /*=======
 Private UPROPERTY() Variables
@@ -287,4 +335,19 @@ private:
 
 	/* the user index to save the settings */
 	uint32 UserIndex = 0;
+
+/*===
+variable only server needs
+===*/
+private:
+	TArray<FPlayerMove> ClientsMoves;
+	
+	FClientSide_Prediction CurrentProxyMove;
+	FClientSide_Prediction ErrorProxyMove;	
+
+	bool bNewSimProxyUpdate = false;
+
+	bool bSendStoppedMove = false;
+
+	float UpdateMultiTime = 1.0f;
 };

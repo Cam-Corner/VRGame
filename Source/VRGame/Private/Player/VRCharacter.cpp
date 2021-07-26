@@ -19,7 +19,7 @@ AVRCharacter::AVRCharacter()
 {
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	SetReplicates(true);
+	bReplicates = true;
 	/*===========================
 	Initialize Root Component
 	=============================*/
@@ -30,10 +30,10 @@ AVRCharacter::AVRCharacter()
 	Initialize VR Camera Components
 	=============================*/
 	VRCameraRoot = CreateDefaultSubobject<USceneComponent>(TEXT("VRCameraRoot"));
-	VRCameraRoot->AttachToComponent(RootComp, FAttachmentTransformRules::KeepWorldTransform);
+	VRCameraRoot->SetupAttachment(RootComp);
 
 	VRCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("VRCamera"));
-	VRCamera->AttachToComponent(VRCameraRoot, FAttachmentTransformRules::KeepWorldTransform);
+	VRCamera->SetupAttachment(VRCameraRoot);
 
 	/*ForwardDirection = CreateDefaultSubobject<UArrowComponent>(TEXT("ForwardDirection"));
 	ForwardDirection->AttachToComponent(RootComp, FAttachmentTransformRules::KeepWorldTransform);
@@ -82,7 +82,7 @@ AVRCharacter::AVRCharacter()
 	Initialize Body Collision and setup Settings
 	=============================*/
 	BodyCollision = CreateDefaultSubobject<UCapsuleComponent>(TEXT("BodyCollision"));
-	BodyCollision->AttachToComponent(RootComp, FAttachmentTransformRules::KeepWorldTransform);
+	BodyCollision->SetupAttachment(RootComp);
 	BodyCollision->AddWorldOffset(FVector(0, 0, BodyCollision->GetScaledCapsuleHalfHeight()));
 	BodyCollision->SetSimulatePhysics(true);
 	BodyCollision->SetEnableGravity(true);

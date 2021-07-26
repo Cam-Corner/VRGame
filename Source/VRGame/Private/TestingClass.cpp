@@ -48,6 +48,6 @@ void ATestingClass::Tick(float DeltaTime)
 	float Torque = RotDPID.Update(DeltaTime, Moving->GetComponentRotation().Euler().X,
 		Goto->GetComponentRotation().Euler().X);
 	
-	Moving->AddTorque(FVector(0, 1, 0));
+	//Moving->AddTorque(FVector(0, 1, 0));
 }
 

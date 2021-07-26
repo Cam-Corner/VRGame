@@ -19,21 +19,21 @@ AAutoLoadingGun::AAutoLoadingGun()
 	PrimaryActorTick.bCanEverTick = true;
 
 	ReloadPartMesh = CreateDefaultSubobject<UStaticMeshComponent>("ReloadPartMesh");
-	ReloadPartMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
+	ReloadPartMesh->SetupAttachment(GetRootComponent());
 
 	ShootingPartMesh = CreateDefaultSubobject<UStaticMeshComponent>("ShootingPartMesh");
-	ShootingPartMesh->AttachToComponent(ReloadPartMesh, FAttachmentTransformRules::KeepWorldTransform);
+	ShootingPartMesh->SetupAttachment(ReloadPartMesh);
 
 	ReloadCollisionLocation = CreateDefaultSubobject<UBoxComponent>("Reload Collision Location");
-	ReloadCollisionLocation->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
+	ReloadCollisionLocation->SetupAttachment(GetRootComponent());
 	ReloadCollisionLocation->OnComponentBeginOverlap.AddDynamic(this, &AAutoLoadingGun::OnMagazineReloadOverlapEnter);
 
 	SliderGrabCollisionLocation = CreateDefaultSubobject<UBoxComponent>("Slider Grab Collision Location");
-	SliderGrabCollisionLocation->AttachToComponent(ReloadPartMesh, FAttachmentTransformRules::KeepWorldTransform);
+	SliderGrabCollisionLocation->SetupAttachment(ReloadPartMesh);
 	SliderGrabCollisionLocation->ComponentTags.Add("ALG_Slider");
 
 	OffHandGrabLocationAndCollision = CreateDefaultSubobject<UBoxComponent>("OffHand Grab Location");
-	OffHandGrabLocationAndCollision->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
+	OffHandGrabLocationAndCollision->SetupAttachment(GetRootComponent());
 	OffHandGrabLocationAndCollision->ComponentTags.Add("ALG_OffHandGrab");
 }							 
 

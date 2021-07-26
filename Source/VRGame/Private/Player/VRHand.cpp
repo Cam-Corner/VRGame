@@ -20,16 +20,16 @@ AVRHand::AVRHand()
 	RootComponent = RootComp;
 
 	MotionController = CreateDefaultSubobject<UMotionControllerComponent>(TEXT("Motion Controller"));
-	MotionController->AttachToComponent(RootComp, FAttachmentTransformRules::KeepWorldTransform);
+	MotionController->SetupAttachment(RootComp);
 	MotionController->MotionSource = "Left";
 
 	HandMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Hand Mesh"));
 	HandMesh->SetWorldScale3D(FVector(1.0f, 1.0f, 1.0f));
-	HandMesh->AttachToComponent(MotionController, FAttachmentTransformRules::KeepWorldTransform);
+	HandMesh->SetupAttachment(MotionController);
 	HandMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	HandMeshCol = CreateDefaultSubobject<USphereComponent>(TEXT("Hand Mesh Collision"));
-	HandMeshCol->AttachToComponent(MotionController, FAttachmentTransformRules::KeepWorldTransform);
+	HandMeshCol->SetupAttachment(MotionController);
 	HandMeshCol->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	HandMeshCol->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
 	HandMeshCol->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
