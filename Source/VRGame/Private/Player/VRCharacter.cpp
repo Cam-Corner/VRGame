@@ -90,7 +90,14 @@ AVRCharacter::AVRCharacter()
 	BodyCollision->SetCollisionProfileName("BlockAll");
 
 	VRCharacterComponent = CreateDefaultSubobject<UVRCharacterComponent>(TEXT("VR Character Component"));
+	VRCharacterComponent->SetIsReplicated(true);
 	//AddOwnedComponent(VRCharacterComponent);
+
+	CharacterStaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CharacterStaticMesh"));
+	CharacterStaticMesh->SetupAttachment(BodyCollision);
+
+	ServerLocation = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ServerLocation"));
+	ServerLocation->SetupAttachment(GetRootComponent());
 }
 
 // Called when the game starts or when spawned
@@ -166,6 +173,7 @@ void AVRCharacter::Tick(float DeltaTime)
 	if (VRCharacterComponent)
 	{
 		VRCharacterComponent->SetXYMovementDirection(MovementThumbstick);
+		ServerLocation->SetWorldLocation(VRCharacterComponent->GetServerSycnedLocation());
 	}
 
 }

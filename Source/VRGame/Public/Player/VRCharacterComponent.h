@@ -140,6 +140,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetSnapTurnAmount(float Value) { SnapTurningAmount = Value; }
 
+	FVector GetServerSycnedLocation() { return SyncedServerLocation; }
+
 /*======
 Private Functions
 =======*/
@@ -186,7 +188,8 @@ private:
 	* @param Dir	is expected to be a unit vector and should be the direction you want to move the capsule
 	* @param offset is used to determind the move amount
 	*/
-	void MovePlayerCapsule(FVector Dir, float OffsetAmount);
+	FVector MovePlayerCapsule(FVector Dir, float OffsetAmount, 
+		UCapsuleComponent* CapToMove, bool bXYRecenter, bool bZRecenter);
 
 	/** Gets the new direction when moving up a slope
 	* @param CurrentDir should be a unit vector and is the current movement direction
@@ -209,11 +212,9 @@ public:
 	UFUNCTION(Server, UnReliable)
 	void Server_SendMove(FVector Dir, float DeltaTime, FVector EndLocation);
 
-	UFUNCTION(NetMulticast, UnReliable)
-	void NetMulticast_SendMove(FVector Dir,
-	FVector LastServerLocation,
-	float LastServerWorldDelta,
-	bool bStillMoving);
+	UFUNCTION(NetMulticast, Reliable)
+	void NetMulticast_SendMove(FVector Dir, FVector LastServerLocation,
+	float LastServerWorldDelta, bool bStillMoving);
 
 	UFUNCTION(Client, Unreliable)
 	void Client_SetLocation(FVector Location);
@@ -340,6 +341,12 @@ private:
 variable only server needs
 ===*/
 private:
+	UPROPERTY(Replicated)
+	FVector SyncedServerLocation = FVector::ZeroVector;
+
+	UPROPERTY(VisibleAnywhere)
+	class UCapsuleComponent* ServerSideCap;
+
 	TArray<FPlayerMove> ClientsMoves;
 	
 	FClientSide_Prediction CurrentProxyMove;

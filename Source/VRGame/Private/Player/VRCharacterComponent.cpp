@@ -22,6 +22,8 @@ UVRCharacterComponent::UVRCharacterComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 	//bReplicates = true;
 	// ...
+
+	ServerSideCap = CreateDefaultSubobject<UCapsuleComponent>(TEXT("ServerSideCap"));
 }
 
 // Called when the game starts
@@ -36,6 +38,13 @@ void UVRCharacterComponent::BeginPlay()
 	bNewSimProxyUpdate = false;
 	// ...
 
+	if(GetOwner())
+		ServerSideCap->SetupAttachment(GetOwner()->GetRootComponent());
+
+	if (VRCharacterCapsule)
+		ServerSideCap->SetWorldLocation(VRCharacterCapsule->GetComponentLocation());
+
+	ServerSideCap->bHiddenInGame = false;
 }
 
 // Called every frame
@@ -157,26 +166,29 @@ void UVRCharacterComponent::LoadSettings()
 
 void UVRCharacterComponent::NetworkedMovement(float DeltaTime)
 {
-	bool bCan = true;
+	bool bLocallyControlled = false;
 	ENetRole Role = GetOwnerRole();
 	if (AVRCharacter* VRC = Cast<AVRCharacter>(GetOwner()))
 	{
 		if (VRC->IsLocallyControlled())
 		{
 			LocalMovement(DeltaTime);
-			bCan = false;
+			bLocallyControlled = true;
 		}		
 	} 
 	
-	if (Role == ROLE_Authority && bCan)
+	if (Role >= ROLE_Authority)
 	{
 		AuthorativeMovement(DeltaTime);
+
+		if(VRCharacterCapsule)
+			SyncedServerLocation = VRCharacterCapsule->GetComponentLocation();
 	} 
-	else if (Role == ROLE_SimulatedProxy)
+	
+	if (Role >= ROLE_SimulatedProxy && !bLocallyControlled)
 	{
 		SimulatedProxyMovement(DeltaTime);
 	}
-
 }
 
 void UVRCharacterComponent::LocalMovement(float DeltaTime)
@@ -192,24 +204,26 @@ void UVRCharacterComponent::LocalMovement(float DeltaTime)
 	FVector OldCharacterCapsuleLoc = VRCharacterCapsule->GetComponentLocation();
 	OldCharacterCapsuleLoc.Z = 0;
 	
-
 	if (!XYMovement.IsZero())
 	{
 		bSendStoppedMove = false;
 		FPlayerMove Move;
 		Move.StartLocation = VRCharacterCapsule->GetComponentLocation();
-
 		FVector Dir = XYMovement;
 		Dir.Normalize();
 		float Distance = XYMovement.Size();
-		MovePlayerCapsule(Dir, Distance * DeltaTime);
+		FVector NewCapLocation = MovePlayerCapsule(Dir, Distance * DeltaTime, 
+			VRCharacterCapsule, false, true);
 		
+		//GEngine->AddOnScreenDebugMessage(25, 5.0f, FColor::Red,
+			//NewCapLocation.ToString(), true);
+
 		Move.DeltaTime = DeltaTime;
 		Move.Dir = Dir;
 		
 		Move.EndLocation = VRCharacterCapsule->GetComponentLocation();
 
-		if (GetOwnerRole() == ROLE_Authority)
+		if (GetOwnerRole() >= ROLE_Authority)
 		{
 			FClientSide_Prediction NewMove;
 			NewMove.LastServerWorldDelta = UGameplayStatics::GetGameState(GetWorld())->GetServerWorldTimeSeconds();
@@ -217,13 +231,16 @@ void UVRCharacterComponent::LocalMovement(float DeltaTime)
 			NewMove.Dir = Move.Dir;
 			NewMove.bStillMoving = true;
 
-			NetMulticast_SendMove(NewMove.Dir, NewMove.LastServerLocation, NewMove.LastServerWorldDelta, NewMove.bStillMoving);
+			GEngine->AddOnScreenDebugMessage(3, 1.0f, FColor::Blue, "Host sending move", true);
+				NetMulticast_SendMove(NewMove.Dir, NewMove.LastServerLocation, NewMove.LastServerWorldDelta, NewMove.bStillMoving);
+
+			if (ServerSideCap)
+				ServerSideCap->SetWorldLocation(Move.EndLocation);
 		}
 		else
 		{
 			Server_SendMove(Move.Dir, Move.DeltaTime, Move.EndLocation);
 		}
-		
 	}
 	else
 	{
@@ -234,9 +251,9 @@ void UVRCharacterComponent::LocalMovement(float DeltaTime)
 			Move.Dir = FVector::ZeroVector;
 			Move.StartLocation = VRCharacterCapsule->GetComponentLocation();
 			Move.EndLocation = VRCharacterCapsule->GetComponentLocation();
-			//bSendStoppedMove = true;
+			bSendStoppedMove = true;
 
-			if (GetOwnerRole() == ROLE_Authority)
+			if (GetOwnerRole() >= ROLE_Authority)
 			{
 				FClientSide_Prediction NewMove;
 				NewMove.LastServerWorldDelta = UGameplayStatics::GetGameState(GetWorld())->GetServerWorldTimeSeconds();
@@ -244,6 +261,7 @@ void UVRCharacterComponent::LocalMovement(float DeltaTime)
 				NewMove.Dir = Move.Dir;
 				NewMove.bStillMoving = false;
 
+				GEngine->AddOnScreenDebugMessage(3, 1.0f, FColor::Blue, "Host sending move", true);
 				NetMulticast_SendMove(NewMove.Dir, NewMove.LastServerLocation, NewMove.LastServerWorldDelta, NewMove.bStillMoving);
 			}
 			else
@@ -268,14 +286,19 @@ void UVRCharacterComponent::SimulatedProxyMovement(float DeltaTime)
 	if (!VRCharacterCapsule || !VRCharacterCamera || !VRCharacterCameraOrigin || !ComponentOwner)
 		return;
 
-	GEngine->AddOnScreenDebugMessage(50, 5.0f, FColor::Red,
+	/*GEngine->AddOnScreenDebugMessage(50, 5.0f, FColor::Red,
 		CurrentProxyMove.ToString(), true);
 	GEngine->AddOnScreenDebugMessage(51, 5.0f, FColor::Red,
-		ErrorProxyMove.ToString(), true);
+		ErrorProxyMove.ToString(), true);*/
 
 	if (bNewSimProxyUpdate)
 	{
-		MovePlayerCapsule(ErrorProxyMove.Dir, WalkMovementSpeed * DeltaTime);
+		GEngine->AddOnScreenDebugMessage(27, 0.1f, FColor::Red,
+			"Moving Sim Proxy: " + ErrorProxyMove.ToString(), true);
+		FVector NewCapLocation = MovePlayerCapsule(ErrorProxyMove.Dir, WalkMovementSpeed * DeltaTime, 
+			VRCharacterCapsule, false, true);
+
+		VRCharacterCapsule->SetWorldLocation(NewCapLocation);
 
 		FVector Location = VRCharacterCapsule->GetComponentLocation();
 
@@ -290,32 +313,44 @@ void UVRCharacterComponent::SimulatedProxyMovement(float DeltaTime)
 	}
 	else
 	{
-		if(CurrentProxyMove.bStillMoving)
-			MovePlayerCapsule(CurrentProxyMove.Dir, WalkMovementSpeed * DeltaTime);
+		if (CurrentProxyMove.bStillMoving)
+		{
+			GEngine->AddOnScreenDebugMessage(27, 0.1f, FColor::Red,
+				"Moving Sim Proxy: " + ErrorProxyMove.ToString(), true);
+			FVector NewCapLocation = MovePlayerCapsule(CurrentProxyMove.Dir, WalkMovementSpeed * DeltaTime,
+				VRCharacterCapsule, false, true);
+		}
 	}
 }
 
 void UVRCharacterComponent::AuthorativeMovement(float DeltaTime)
 {
+	if (!ServerSideCap)
+	{
+		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, "ServerSideCap NULL", true);
+		return;
+	}
+		
 	if (ClientsMoves.Num() > 0)
 	{
 		FPlayerMove Move = ClientsMoves[0];
 		
-		MovePlayerCapsule(Move.Dir, WalkMovementSpeed * Move.DeltaTime);
+		FVector NewCapLocation = MovePlayerCapsule(Move.Dir, WalkMovementSpeed * Move.DeltaTime,
+			ServerSideCap, false, false);
 
-		FVector NewLoc = VRCharacterCapsule->GetComponentLocation();
+		SyncedServerLocation = NewCapLocation;
 
-		float Dist = FVector::Distance(NewLoc, Move.EndLocation);
+		float Dist = FVector::Distance(NewCapLocation, Move.EndLocation);
 
 		if (Dist > 0.5f)
 		{
-			Client_SetLocation(NewLoc);
+			Client_SetLocation(NewCapLocation);
 			GEngine->AddOnScreenDebugMessage(55, 5.0f, FColor::Blue, "A clients move was invalid, reseting location!", true);
 		}
 
 		FClientSide_Prediction NewMove;
 		NewMove.LastServerWorldDelta = UGameplayStatics::GetGameState(GetWorld())->GetServerWorldTimeSeconds();
-		NewMove.LastServerLocation = NewLoc;
+		NewMove.LastServerLocation = NewCapLocation;
 		NewMove.Dir = Move.Dir;
 		
 		if (Move.Dir == FVector::ZeroVector)
@@ -323,9 +358,11 @@ void UVRCharacterComponent::AuthorativeMovement(float DeltaTime)
 		else
 			NewMove.bStillMoving = true;
 
+		//GEngine->AddOnScreenDebugMessage(25, 1.0f, FColor::Orange, "Sending Clients new move", true);
+		NetMulticast_SendMove(NewMove.Dir, NewMove.LastServerLocation, NewMove.LastServerWorldDelta, NewMove.bStillMoving);
+
 		ClientsMoves.RemoveAt(0);
 
-		NetMulticast_SendMove(NewMove.Dir, NewMove.LastServerLocation, NewMove.LastServerWorldDelta, NewMove.bStillMoving);
 	}
 }
 
@@ -346,14 +383,6 @@ void UVRCharacterComponent::WorkOutSimulatedProxyError()
 
 	ErrorProxyMove.Dir = ErrorProxyMove.LastServerLocation - CurrentLocaton;
 	ErrorProxyMove.Dir.Normalize();
-
-	FVector Start = ErrorProxyMove.LastServerLocation;
-	Start.Z -= 35;
-	FVector End = ErrorProxyMove.LastServerLocation;
-	End.Z += 35;
-
-	DrawDebugCylinder(GetWorld(), Start, End,
-		20, 25, FColor::Red, false, 0.05f);
 
 	bNewSimProxyUpdate = true;
 }
@@ -378,7 +407,7 @@ void UVRCharacterComponent::HandleMovement(float DeltaTime)
 			FVector Dir = XYMovement;
 			Dir.Normalize();
 			float Distance = XYMovement.Size();
-			MovePlayerCapsule(Dir, Distance * DeltaTime);
+			//MovePlayerCapsule(Dir, Distance * DeltaTime);
 			
 			if (bUseSweepMovement && btest)
 			{
@@ -390,7 +419,7 @@ void UVRCharacterComponent::HandleMovement(float DeltaTime)
 				{
 					float Angle = ExtraMaths::GetAngleOfTwoVectors(FVector(0, 0, 1), Hit.ImpactNormal);
 
-					GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Yellow, "Slope Angle: " + FString::SanitizeFloat(Angle), true);
+					//GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Yellow, "Slope Angle: " + FString::SanitizeFloat(Angle), true);
 
 					if (Angle > MaxWalkableSlopeAngle)
 					{
@@ -649,7 +678,7 @@ void UVRCharacterComponent::MoveCollisionToHMD()
 	Dir.Z = 0;
 	float Distance = Dir.Size();
 	Dir.Normalize();
-	MovePlayerCapsule(Dir, Distance);
+	//MovePlayerCapsule(Dir, Distance);
 
 	if (!XYMovement.IsZero())
 	{
@@ -822,40 +851,47 @@ void UVRCharacterComponent::CheckToSeeIfCameraIsInsideObject()
 	}
 }
 
-void UVRCharacterComponent::MovePlayerCapsule(FVector Dir, float OffsetAmount)
+FVector UVRCharacterComponent::MovePlayerCapsule(FVector Dir, float OffsetAmount, 
+	UCapsuleComponent* CapToMove, bool bXYRecenter, bool bZRecenter)
 {
-	if (!VRCharacterCapsule || !VRCharacterCamera || !VRCharacterCameraOrigin || !ComponentOwner)
-		return;
+	if (!CapToMove || !VRCharacterCamera || !VRCharacterCameraOrigin || !ComponentOwner)
+		return FVector(0, 0, 0);
+
+	FHitResult FinalMove;
+	FVector StartLocation = CapToMove->GetComponentLocation();
+	FVector EndLocation = StartLocation + (Dir * OffsetAmount);
 
 	if (bUseSweepMovement)
 	{
-		FHitResult Hit;
+		//FHitResult Hit;
 		FVector Offset = Dir * OffsetAmount;
-		VRCharacterCapsule->AddWorldOffset(Offset, true, &Hit);
-	
-		if (Hit.bBlockingHit)
+		VRCharacterCapsule->AddWorldOffset(Offset, true, &FinalMove);
+
+		if (FinalMove.bBlockingHit)
 		{
-			float Angle = ExtraMaths::GetAngleOfTwoVectors(FVector(0, 0, 1), Hit.ImpactNormal);
+			StartLocation = FinalMove.Location;
+			
+			float Angle = ExtraMaths::GetAngleOfTwoVectors(FVector(0, 0, 1), FinalMove.ImpactNormal);
 	
-			GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Yellow, "Slope Angle: " + FString::SanitizeFloat(Angle), true);
+			//GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Yellow, "Slope Angle: " + FString::SanitizeFloat(Angle), true);
 	
 			if (Angle > MaxWalkableSlopeAngle)
 			{
-				FVector Normal2D = Hit.Normal;
+				FVector Normal2D = FinalMove.Normal;
 				Normal2D.Z = 0;
 				Normal2D.Normalize();
 	
 				FVector PlaneProject = FVector::VectorPlaneProject(Offset, Normal2D);
-				Offset = PlaneProject * (1 - Hit.Time);
-				bool bZRecenter = false;
+				Offset = PlaneProject * (1 - FinalMove.Time);
+				bool bShouldZRecenter = false;
 	
 				/* Check to see if their is a slope below us */
 				{
 					FHitResult FloorHit;
-					FVector StartLocation = VRCharacterCapsule->GetComponentLocation();
+					FVector SphereStartLocation = StartLocation;
 					float SphereRadius = VRCharacterCapsule->GetScaledCapsuleRadius() - 2;
-					FVector EndLocation = StartLocation - FVector(0, 0, (VRCharacterCapsule->GetScaledCapsuleHalfHeight() + 2.5f));
-					SphereCast(FloorHit, StartLocation, EndLocation, SphereRadius);
+					FVector SphereEndLocation = SphereStartLocation - FVector(0, 0, (VRCharacterCapsule->GetScaledCapsuleHalfHeight() + 2.5f));
+					SphereCast(FloorHit, SphereStartLocation, SphereEndLocation, SphereRadius);
 	
 					if (FloorHit.bBlockingHit)
 					{
@@ -872,58 +908,63 @@ void UVRCharacterComponent::MovePlayerCapsule(FVector Dir, float OffsetAmount)
 								(ExtraMaths::GetAngleOfTwoVectors(PPDir, FVector(0, 0, 1)) - FloorAngle);
 
 							FVector RotatedF = PlaneProject.RotateAngleAxis(-RotateAmount, RotateAxis);
-							Offset = RotatedF * (1 - Hit.Time);
-							bZRecenter = true;
+							Offset = RotatedF * (1 - FinalMove.Time);
+							bShouldZRecenter = true;
 
-							DrawDebugLine(GetWorld(), VRCharacterCapsule->GetComponentLocation(),
+							/*DrawDebugLine(GetWorld(), VRCharacterCapsule->GetComponentLocation(),
 								VRCharacterCapsule->GetComponentLocation() + Offset, FColor::Blue,
-								false, 50.0f);
+								false, 50.0f);*/
 						}
 					}
 				}
 
-				
-
 				VRCharacterCapsule->AddWorldOffset(Offset, true);
-	
-				if (bZRecenter)
+
+				if (bZRecenter && bShouldZRecenter)
 					ZRecenter();
 			}
 			else
 			{
 				//move up a slope		
-				FVector NewDir = GetSlopeMovementDirection(Dir, Hit.ImpactNormal, Hit.Actor->GetActorRightVector());
-				FVector NewOffset = (NewDir * OffsetAmount) * (1 - Hit.Time);
+				FVector NewDir = GetSlopeMovementDirection(Dir, FinalMove.ImpactNormal, FinalMove.Actor->GetActorRightVector());
+				FVector NewOffset = (NewDir * OffsetAmount) * (1 - FinalMove.Time);
 
 				/*DrawDebugLine(GetWorld(), VRCharacterCapsule->GetComponentLocation(),
 					VRCharacterCapsule->GetComponentLocation() + NewOffset, FColor::Red,
 					false, 0.5f);*/
 
 				VRCharacterCapsule->AddWorldOffset(NewOffset, true);
-				ZRecenter();			
+				
+				if(bZRecenter)
+					ZRecenter();			
 			}
 		}
 	
 		if (bGrounded)
 		{
 			FHitResult FloorHit;
-			FVector StartLocation = VRCharacterCapsule->GetComponentLocation();
+			FVector SphereStartLocation = StartLocation;
 			float SphereRadius = VRCharacterCapsule->GetScaledCapsuleRadius() - 2;
-			FVector EndLocation = StartLocation - FVector(0, 0, (VRCharacterCapsule->GetScaledCapsuleHalfHeight() + 10));
-			SphereCast(FloorHit, StartLocation, EndLocation, SphereRadius);
+			FVector SphereEndLocation = StartLocation - FVector(0, 0, (VRCharacterCapsule->GetScaledCapsuleHalfHeight() + 10));
+			SphereCast(FloorHit, SphereStartLocation, SphereEndLocation, SphereRadius);
 	
 			if (FloorHit.bBlockingHit)
 			{
 				FVector FloorDir = -FloorHit.Normal;
 				FVector NewOffset = FloorDir * 100;
 				VRCharacterCapsule->AddWorldOffset(NewOffset, true);
-				ZRecenter();
+				
+				if (bZRecenter)
+					ZRecenter();
 			}
 	
 		}
 	
-		//XYRecenter();
+		if(bXYRecenter)
+			XYRecenter();
 	}
+
+	return FinalMove.bBlockingHit ? FinalMove.Location : FinalMove.TraceEnd;
 }
 
 FVector UVRCharacterComponent::GetSlopeMovementDirection(FVector CurrentDir, FVector SlopeDir, FVector RotateAxis)
@@ -1073,8 +1114,8 @@ void UVRCharacterComponent::NetMulticast_SendMove_Implementation(FVector Dir, FV
 
 	if (UpdateMultiTime <= 0)
 	{
-		GEngine->AddOnScreenDebugMessage(49, 5.0f, FColor::Purple,
-			CurrentProxyMove.ToString(), true);
+		/*GEngine->AddOnScreenDebugMessage(49, 5.0f, FColor::Purple,
+			CurrentProxyMove.ToString(), true);*/
 		UpdateMultiTime = 1;
 	}
 
@@ -1088,4 +1129,11 @@ void UVRCharacterComponent::Server_SendMove_Implementation(FVector Dir, float De
 	Move.EndLocation = EndLocation;
 	Move.DeltaTime = DeltaTime;
 	ClientsMoves.Add(Move);
+}
+
+void UVRCharacterComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(UVRCharacterComponent, SyncedServerLocation);
 }

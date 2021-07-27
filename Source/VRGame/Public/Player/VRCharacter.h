@@ -73,6 +73,13 @@ private:
 	
 	UPROPERTY(VisibleAnywhere, Category = "BodyCollision")
 		class UCapsuleComponent* BodyCollision;
+
+	UPROPERTY(VisibleAnywhere, Category = "Body")
+		class UStaticMeshComponent* CharacterStaticMesh;
+
+	UPROPERTY(VisibleAnywhere, Category = "Body")
+		class UStaticMeshComponent* ServerLocation;
+
 	//class UMotionControllerComponent* LeftMotionController;
 	//class UMotionControllerComponent* RightMotionController;
 	//class UArrowComponent* ForwardDirection;
