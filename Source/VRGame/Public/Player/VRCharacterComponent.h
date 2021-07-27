@@ -21,6 +21,7 @@ struct FPlayerMove
 	FVector Dir;
 	FVector StartLocation;
 	FVector EndLocation;
+	bool bIsGravity;
 };
 
 USTRUCT()
@@ -32,6 +33,7 @@ struct FClientSide_Prediction
 	FVector LastServerLocation;
 	float LastServerWorldDelta;
 	bool bStillMoving;
+	bool bIsGravity;
 
 	FString Moving = bStillMoving ? "true" : "false";
 
@@ -75,6 +77,9 @@ public:
 Public Functions
 =======*/
 public:
+	/* Reset to start location */
+	void ResetToStartLocation();
+
 	/*Recenter the player camera to the collision box on the XY plane*/
 	void XYRecenter();
 
@@ -142,6 +147,8 @@ public:
 
 	FVector GetServerSycnedLocation() { return SyncedServerLocation; }
 
+	float GetHalfHeight() { return ActorsCapHalfHeight; }
+
 /*======
 Private Functions
 =======*/
@@ -167,11 +174,14 @@ private:
 	/* Handle Smooth Rotation */
 	void SmoothRotation(float DeltaTime);
 	
-	/* Scale the players collision from the floor to the headset*/
-	void ScaleCollisionWithPlayer();
+	/* Scale the players collision from the floor to the headset and is networked */
+	void ScaleCollisionWithPlayerNetworked(bool bLocallyControlled);
+
+	/* Scale the players collision from the floor to the headset */
+	void ScaleCollisionWithPlayer(float NewHalfHeight);
 
 	/* Move Collision To HMD headset */
-	void MoveCollisionToHMD();
+	void MoveCollisionToHMD(float DeltaTime);
 
 	/* check how far the HMD is from the collision */
 	void CheckHMDDistanceFromCollision();
@@ -182,14 +192,22 @@ private:
 	*/
 	void CheckToSeeIfCameraIsInsideObject();
 
-
 	/** Moves the player collision capsule around the world 
 	* Collision is handled by sweeping the capsule by the given offet (using AddWorldOffset)
 	* @param Dir	is expected to be a unit vector and should be the direction you want to move the capsule
 	* @param offset is used to determind the move amount
 	*/
-	FVector MovePlayerCapsule(FVector Dir, float OffsetAmount, 
+	void MovePlayerCapsule(FVector Dir, float OffsetAmount, 
 		UCapsuleComponent* CapToMove, bool bXYRecenter, bool bZRecenter);
+
+	/** Moves the player collision capsule around the world
+	* Collision is handled by sweeping the capsule by the given offet (using AddWorldOffset)
+	* @param Dir	is expected to be a unit vector and should be the direction you want to move the capsule
+	* @param offset is used to determind the move amount
+	* @This function will also sync player movement in multiplayer
+	*/
+	void MovePlayerCapsuleWithServerSynced(FVector Dir, float OffsetAmount,
+		UCapsuleComponent* CapToMove, bool bXYRecenter, bool bZRecenter, float DeltaTime, bool bIsGravity = false);
 
 	/** Gets the new direction when moving up a slope
 	* @param CurrentDir should be a unit vector and is the current movement direction
@@ -210,14 +228,17 @@ Networking Functions
 =======*/
 public:
 	UFUNCTION(Server, UnReliable)
-	void Server_SendMove(FVector Dir, float DeltaTime, FVector EndLocation);
+	void Server_SendMove(FVector Dir, float DeltaTime, FVector EndLocation, bool bIsGravity = false);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void NetMulticast_SendMove(FVector Dir, FVector LastServerLocation,
-	float LastServerWorldDelta, bool bStillMoving);
+	float LastServerWorldDelta, bool bStillMoving, bool bIsGravity = false);
 
 	UFUNCTION(Client, Unreliable)
 	void Client_SetLocation(FVector Location);
+
+	UFUNCTION(Server, Unreliable)
+		void Server_SetNewHalfHeight(float NewHalfHeight);
 
 /*=======
 Private UPROPERTY() Variables
@@ -336,6 +357,13 @@ private:
 
 	/* the user index to save the settings */
 	uint32 UserIndex = 0;
+
+	FVector LastCapLocation = FVector::ZeroVector;
+
+	UPROPERTY(Replicated)
+	float ActorsCapHalfHeight = 0;
+
+	float OldCapHalfHeight = 0;
 
 /*===
 variable only server needs

@@ -86,7 +86,7 @@ AVRCharacter::AVRCharacter()
 	BodyCollision->AddWorldOffset(FVector(0, 0, BodyCollision->GetScaledCapsuleHalfHeight()));
 	BodyCollision->SetSimulatePhysics(true);
 	BodyCollision->SetEnableGravity(true);
-	BodyCollision->SetVisibility(true);
+	BodyCollision->SetVisibility(false);
 	BodyCollision->SetCollisionProfileName("BlockAll");
 
 	VRCharacterComponent = CreateDefaultSubobject<UVRCharacterComponent>(TEXT("VR Character Component"));
@@ -118,10 +118,17 @@ void AVRCharacter::BeginPlay()
 		VRCharacterComponent->SetComponentOwner(this);
 		VRCharacterComponent->SetVRCharacterCamera(VRCamera, VRCameraRoot);
 		VRCharacterComponent->SetVRCharacterCapsule(BodyCollision);
+		VRCharacterComponent->ResetToStartLocation();
 	}
 
 	if (bNonVRTesting)
 		VRCamera->AddWorldOffset(FVector(0, 0, 100));
+
+	if (IsLocallyControlled())
+	{
+		CharacterStaticMesh->bHiddenInGame = true;
+		CharacterStaticMesh->SetVisibility(false);
+	}
 }
 
 void AVRCharacter::SpawnHands()
@@ -170,10 +177,14 @@ void AVRCharacter::Tick(float DeltaTime)
 	ApplyMovement();
 	ScaleCollisionWithPlayer();*/
 
-	if (VRCharacterComponent)
+	if (VRCharacterComponent && CharacterStaticMesh)
 	{
 		VRCharacterComponent->SetXYMovementDirection(MovementThumbstick);
 		ServerLocation->SetWorldLocation(VRCharacterComponent->GetServerSycnedLocation());
+		
+		FVector NewScale = CharacterStaticMesh->GetComponentScale();
+		NewScale.Z = VRCharacterComponent->GetHalfHeight() * 0.0032;
+		CharacterStaticMesh->SetWorldScale3D(NewScale);
 	}
 
 }
