@@ -23,7 +23,6 @@ ATestingClass::ATestingClass()
 void ATestingClass::BeginPlay()
 {
 	Super::BeginPlay();
-	LocPID.SetPIDValue(LocP, LocI, LocD);
 }
 float OldForce = 0;
 // Called every frame
@@ -38,14 +37,12 @@ void ATestingClass::Tick(float DeltaTime)
 	FVector LocA = Goto->GetComponentLocation();
 	FVector LocB = Moving->GetComponentLocation();
 
-	float X = LocA.X - LocB.X;
-	
-	if (X < 0)
-		X = -X;
+	float Diff = FVector::Distance(LocA, LocB);
+	float ForceAgainst = FVector(LocA - LocB).Size();
+	float SpringForce = Spring.Update(Diff, ForceAgainst);
+	FVector Dir = LocB - LocA;
+	Dir.Normalize();
 
-	float K = (X - 1) / X;
-	
-	float F = K * X;
-	Moving->AddForce(FVector(F, 0, 0), NAME_None, true);
+	Moving->SetPhysicsLinearVelocity(Dir * SpringForce);
 }
 

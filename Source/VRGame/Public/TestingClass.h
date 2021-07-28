@@ -7,6 +7,47 @@
 #include "Utility/ExtraMaths.h"
 #include "TestingClass.generated.h"
 
+USTRUCT()
+struct FLinearSpring
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	float ForceMultiplier = 1.0f;
+
+	float Update(float Difference, float ForceAgainst)
+	{
+		float K = ForceAgainst / Difference;
+		float F = -K * Difference;
+		return F * ForceMultiplier;
+	}
+};
+
+/*USTRUCT()
+struct FLinearSpring3D
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	float ForceMultiplier = 1.0f;
+
+	FVector Update(FVector Difference, FVector ForceAgainst)
+	{
+		XSpring.ForceMultiplier = ForceMultiplier;
+		YSpring.ForceMultiplier = ForceMultiplier;
+		ZSpring.ForceMultiplier = ForceMultiplier;
+
+		float X = XSpring.Update(Difference.X, ForceAgainst.X);
+		float X = XSpring.Update(Difference.X, ForceAgainst.X);
+		float X = XSpring.Update(Difference.X, ForceAgainst.X);
+	}
+
+private:
+	FLinearSpring XSpring;
+	FLinearSpring YSpring;
+	FLinearSpring ZSpring;
+};*/
+
 UCLASS()
 class VRGAME_API ATestingClass : public AActor
 {
@@ -33,36 +74,6 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Testing")
 		class UStaticMeshComponent* Moving;
 
-	UPROPERTY(EditAnywhere, Category = "Location PID")
-		float LocForce = 100;
-
-	UPROPERTY(EditAnywhere, Category = "Location PID")
-		float LocP = 0;
-
-	UPROPERTY(EditAnywhere, Category = "Location PID")
-		float LocI = 0;
-
-	UPROPERTY(EditAnywhere, Category = "Location PID")
-		float LocD = 0;
-
-	FPIDController3D LocPID;
-
-	UPROPERTY(EditAnywhere, Category = "Rotation PID")
-		float RotForce = 100;
-
-	UPROPERTY(EditAnywhere, Category = "Rotation PID")
-		float RotP = 0;
-
-	UPROPERTY(EditAnywhere, Category = "Rotation PID")
-		float RotI = 0;
-
-	UPROPERTY(EditAnywhere, Category = "Rotation PID")
-		float RotD = 0;
-
-	FPIDController3D RotPID;
-
-	FPIDController RotDPID;
-
-	FVector LastCross = FVector(0, 0, 0);
-
+	UPROPERTY(EditAnywhere, Category = "Spring")
+	FLinearSpring Spring;
 };

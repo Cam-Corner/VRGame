@@ -185,7 +185,7 @@ void UVRCharacterComponent::NetworkedMovement(float DeltaTime)
 		{
 			LocalMovement(DeltaTime);
 			MoveCollisionToHMD(DeltaTime);
-			ApplyGravity(DeltaTime);
+			//ApplyGravity(DeltaTime);
 			SmoothRotation(DeltaTime);
 			CheckHMDDistanceFromCollision();
 			CheckToSeeIfCameraIsInsideObject();		
@@ -375,7 +375,7 @@ void UVRCharacterComponent::AuthorativeMovement(float DeltaTime)
 			OffsetAmount = WalkMovementSpeed * Move.DeltaTime;
 
 		MovePlayerCapsule(Move.Dir, OffsetAmount,
-			ServerSideCap, false, false);
+			ServerSideCap, false, true);
 
 		SyncedServerLocation = ServerSideCap->GetComponentLocation();
 
