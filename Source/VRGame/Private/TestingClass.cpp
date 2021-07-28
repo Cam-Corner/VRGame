@@ -39,8 +39,12 @@ void ATestingClass::Tick(float DeltaTime)
 	FVector LocB = Moving->GetComponentLocation();
 
 	float X = LocA.X - LocB.X;
+	
+	if (X < 0)
+		X = -X;
 
-	float K = (X / 100) / 2;
+	float K = (X - 1) / X;
+	
 	float F = K * X;
 	Moving->AddForce(FVector(F, 0, 0), NAME_None, true);
 }
