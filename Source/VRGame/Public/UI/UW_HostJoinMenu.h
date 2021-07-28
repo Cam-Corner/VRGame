@@ -20,6 +20,15 @@ class VRGAME_API UUW_HostJoinMenu : public UUserWidget
 public:
 	virtual void NativeConstruct() override;
 
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
+protected:
+	UFUNCTION(BlueprintCallable)
+		bool IsNewServerError(FString& GetError);
+
+	UFUNCTION(BlueprintNativeEvent)
+		void bp_CallNewError(const FString& GetError);
+
 private:
 	UFUNCTION()
 	void JoinServer(FName IP);
@@ -47,4 +56,5 @@ private:
 	UPROPERTY(Meta = (BindWidget))
 	UTextBlock* Text_JoinCameron;
 
+	float CheckErrorsTimer = 1;
 };

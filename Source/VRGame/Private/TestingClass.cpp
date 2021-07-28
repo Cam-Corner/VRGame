@@ -25,29 +25,23 @@ void ATestingClass::BeginPlay()
 	Super::BeginPlay();
 	LocPID.SetPIDValue(LocP, LocI, LocD);
 }
-
+float OldForce = 0;
 // Called every frame
 void ATestingClass::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	LocPID.SetPIDValue(LocP, LocI, LocD);
-	FVector LocPIDUpdate = LocPID.Update(DeltaTime, Moving->GetComponentLocation(), Goto->GetComponentLocation());
-	
-	if (LocPIDUpdate.IsNearlyZero())
-		LocPIDUpdate.Set(0, 0, 0);
+	//F = -Kx
+	//F force
+	//K Stiffness
+	//X Distance
+	FVector LocA = Goto->GetComponentLocation();
+	FVector LocB = Moving->GetComponentLocation();
 
-	//Moving->AddForce(LocPIDUpdate * LocForce);
-	RotDPID.SetPIDValue(RotP, RotI, RotD);
-	FVector TargetDir = Moving->GetComponentLocation() - Goto->GetComponentLocation();
-	TargetDir.Normalize();
-	FVector RotDir = UKismetMathLibrary::FindLookAtRotation(Moving->GetForwardVector(), TargetDir).Vector();
+	float X = LocA.X - LocB.X;
 
-	float XAngleError = FMath::FindDeltaAngle(Moving->GetComponentRotation().Euler().X,
-		Goto->GetComponentRotation().Euler().X);
-	float Torque = RotDPID.Update(DeltaTime, Moving->GetComponentRotation().Euler().X,
-		Goto->GetComponentRotation().Euler().X);
-	
-	//Moving->AddTorque(FVector(0, 1, 0));
+	float K = (X / 100) / 2;
+	float F = K * X;
+	Moving->AddForce(FVector(F, 0, 0), NAME_None, true);
 }
 
