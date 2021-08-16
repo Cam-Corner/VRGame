@@ -240,6 +240,8 @@ public:
 	UFUNCTION(Server, Unreliable)
 		void Server_SetNewHalfHeight(float NewHalfHeight);
 
+	UFUNCTION(Server, Unreliable)
+		void Server_SetHMDLocation(FVector SetHMDLocation);
 /*=======
 Private UPROPERTY() Variables
 =========*/
@@ -371,6 +373,9 @@ variable only server needs
 private:
 	UPROPERTY(Replicated)
 	FVector SyncedServerLocation = FVector::ZeroVector;
+
+	UPROPERTY(Replicated)
+	FVector SyncedHMDLocation = FVector::ZeroVector;
 
 	UPROPERTY(VisibleAnywhere)
 	class UCapsuleComponent* ServerSideCap;

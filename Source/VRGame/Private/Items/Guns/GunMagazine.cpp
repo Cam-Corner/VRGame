@@ -27,6 +27,13 @@ void AGunMagazine::Tick(float DeltaTime)
 
 	if (CurrentDelay > 0)
 		CurrentDelay -= DeltaTime;
+
+	if (GunAttachedTo)
+	{
+		SetActorLocation(GunAttachedTo->GetActorLocation());
+		SetActorRotation(GunAttachedTo->GetActorRotation());
+		//SetActorRelativeLocation(MagLocalOffset);
+	}
 }
 
 /* Attach To Gun */
@@ -83,7 +90,7 @@ bool AGunMagazine::CanGrabItem()
 	return Super::CanGrabItem();
 }
 
-bool AGunMagazine::MainHandGrabbed(AVRHand* Hand)
+bool AGunMagazine::MainHandGrabbed(AVRPhysicsHand* Hand)
 {
 	if (GunAttachedTo)
 	{

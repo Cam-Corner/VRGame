@@ -47,7 +47,7 @@ public:
 	virtual bool CanGrabItem() override;
 
 	/* Needs to be called when a player grabs a weapon */
-	virtual bool MainHandGrabbed(AVRHand* Hand) override;
+	virtual bool MainHandGrabbed(AVRPhysicsHand* Hand) override;
 
 protected:
 	/* The size of the magazine

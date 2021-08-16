@@ -4,8 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Player/VRHand.h"
+#include "Player/VRPhysicsHand.h"
+#include "Utility/PhysicsSprings.h"
 #include "VRItem.generated.h"
+
+class AVRPhysicsHand;
 
 UCLASS()
 class VRGAME_API AVRItem : public AActor
@@ -15,6 +18,15 @@ class VRGAME_API AVRItem : public AActor
 public:	
 	// Sets default values for this actor's properties
 	AVRItem();
+
+	/** Add a force to the item */
+	class UStaticMeshComponent* GetPhysicsMesh() { return ItemBaseMesh; }
+
+	UFUNCTION(BlueprintNativeEvent)
+		UPrimitiveComponent* GetGripConstraint();
+
+	UFUNCTION(BlueprintNativeEvent)
+		UPrimitiveComponent* GetOffHandGripConstraint();
 
 protected:
 	// Called when the game starts or when spawned
@@ -43,13 +55,13 @@ public:
 	virtual void TopButtonPressed();
 
 	/* Needs to be called when a player grabs a weapon */
-	virtual bool MainHandGrabbed(AVRHand* Hand);
+	virtual bool MainHandGrabbed(AVRPhysicsHand* Hand);
 
 	/* Needs to be called when a player drops the weapon */
 	void MainHandReleased();
 
 	/* Needs to be called when you want to do something with the offhand */
-	virtual void OffHandGrabbed(AVRHand* Hand, const FName& PartNameGrabbed);
+	virtual void OffHandGrabbed(AVRPhysicsHand* Hand, const FName& PartNameGrabbed);
 
 	/* Needs to be called when the offhand is released */
 	virtual void OffHandReleased();
@@ -85,10 +97,11 @@ private:
 
 protected:
 	/* The hand the item is held in */
-	AVRHand* MainHand;
+	UPROPERTY(Replicated)
+	AVRPhysicsHand* MainHand;
 
 	/* Off Hand */
-	AVRHand* OffHand;
+	AVRPhysicsHand* OffHand;
 
 	/* The weapons base mesh */
 	UPROPERTY(VisibleAnywhere, Category = "Item Settings")
@@ -99,5 +112,31 @@ protected:
 	*/
 	bool bShouldDropNextFrame = false;
 
-	
+	void MoveItemToHand(float DeltaTime);
+
+	bool bHitSomething = false;
+	FHitResult LastHitResult;
+
+	UFUNCTION()
+		void OnItemHit(class UPrimitiveComponent* HitComp, AActor* OtherActor,
+			UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	virtual void PhysicsTick_Implementation(float SubsetDeltaTime);
+	FCalculateCustomPhysics OnCalcCustomPhysics;
+	void CustomPhysics(float DeltaTime, FBodyInstance* BodyInstance);
+
+
+/*======
+Server stuff
+========*/
+private:
+	UFUNCTION(Server, Reliable)
+		void Server_PickedupItem(AVRPhysicsHand* HandToFollow);
+
+	UFUNCTION(Client, Reliable)
+		void ClientDropWeapon(AVRPhysicsHand* CurrentHandHoldingItem);
+
+	//UPROPERTY(Replicated)
+	//AVRPhysicsHand* GrabbedHand = nullptr;
+
 };

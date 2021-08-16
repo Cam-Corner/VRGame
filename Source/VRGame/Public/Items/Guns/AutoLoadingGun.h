@@ -75,7 +75,7 @@ public:
 
 	virtual void TopButtonPressed() override;
 
-	virtual void OffHandGrabbed(AVRHand* Hand, const FName& PartNameGrabbed) override;
+	virtual void OffHandGrabbed(AVRPhysicsHand* Hand, const FName& PartNameGrabbed) override;
 
 	virtual void OffHandReleased() override;
 
@@ -242,4 +242,10 @@ private:
 	void HandleSliderMovement();
 	void HandleShells();
 	void HandleTwoHandedWeaponAiming();
+
+/*==========
+Server Stuff
+=============*/
+private:
+	/** Tell the server the top button was pressed */
 };

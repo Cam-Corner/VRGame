@@ -12,7 +12,9 @@
 #include "Engine/World.h"
 #include "VRGameInstance.h"
 #include "Kismet/GameplayStatics.h"
+#include "Player/VRTrackingHands.h"
 #include "Player/VRCharacterComponent.h"
+#include "Networking/NetworkingHelpers.h"
 
 // Sets default values
 AVRCharacter::AVRCharacter()
@@ -84,7 +86,7 @@ AVRCharacter::AVRCharacter()
 	BodyCollision = CreateDefaultSubobject<UCapsuleComponent>(TEXT("BodyCollision"));
 	BodyCollision->SetupAttachment(RootComp);
 	BodyCollision->AddWorldOffset(FVector(0, 0, BodyCollision->GetScaledCapsuleHalfHeight()));
-	BodyCollision->SetSimulatePhysics(true);
+	BodyCollision->SetSimulatePhysics(false);
 	BodyCollision->SetEnableGravity(true);
 	BodyCollision->SetVisibility(false);
 	BodyCollision->SetCollisionProfileName("BlockAll");
@@ -106,8 +108,6 @@ void AVRCharacter::BeginPlay()
 	Super::BeginPlay();
 	//BodyCollision->bHiddenInGame = true;
 
-	SpawnHands();
-
 	if (UVRGameInstance* VRGI = Cast<UVRGameInstance>(UGameplayStatics::GetGameInstance(GetWorld())))
 	{
 		VRGI->SpawnAudioManager();
@@ -124,10 +124,16 @@ void AVRCharacter::BeginPlay()
 	if (bNonVRTesting)
 		VRCamera->AddWorldOffset(FVector(0, 0, 100));
 
+	if (GetLocalRole() >= ROLE_Authority)
+	{
+		SpawnHands();
+	}
+
 	if (IsLocallyControlled())
 	{
 		CharacterStaticMesh->bHiddenInGame = true;
 		CharacterStaticMesh->SetVisibility(false);
+		Server_ClientsActorReady();
 	}
 }
 
@@ -138,28 +144,39 @@ void AVRCharacter::SpawnHands()
 		//setup rules
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.Owner = this;
-
+	
 		FAttachmentTransformRules HandRule = FAttachmentTransformRules::SnapToTargetIncludingScale;
 		HandRule.LocationRule = EAttachmentRule::SnapToTarget;
 		HandRule.RotationRule = EAttachmentRule::SnapToTarget;
 		HandRule.ScaleRule = EAttachmentRule::KeepWorld;
-
-		//spawn left hand
-		LeftHand = GetWorld()->SpawnActor<AVRHand>(BP_DefaultHand, FVector(0, 0, 0), FRotator(0, 0, 0), SpawnInfo);
-		if (LeftHand != NULL)
+	
+		if (!LeftHand)
 		{
-			LeftHand->SetMotionSource("Left");
-			LeftHand->AttachToComponent(VRCameraRoot, HandRule);
+			//spawn left hand
+			LeftHand = GetWorld()->SpawnActor<AVRTrackingHands>(BP_DefaultHand, FVector(0, 0, 0), FRotator(0, 0, 0), SpawnInfo);
+			if (LeftHand != NULL)
+			{
+				LeftHand->SpawnPhysicsHands(GetController());
+				LeftHand->SetTrackingHand("Left");
+				LeftHand->AttachToComponent(VRCameraRoot, HandRule);
+				LeftHand->SetOwner(GetController());
+			}
 		}
-
-		//spawn right hand
-		RightHand = GetWorld()->SpawnActor<AVRHand>(BP_DefaultHand, FVector(0, 0, 0), FRotator(0, 0, 0), SpawnInfo);
-		if (RightHand != NULL)
+	
+		if (!RightHand)
 		{
-			RightHand->SetMotionSource("Right");
-			RightHand->AttachToComponent(VRCameraRoot, HandRule);
+			//spawn right hand
+			RightHand = GetWorld()->SpawnActor<AVRTrackingHands>(BP_DefaultHand, FVector(0, 0, 0), FRotator(0, 0, 0), SpawnInfo);
+			if (RightHand != NULL)
+			{
+				RightHand->SpawnPhysicsHands(GetController());
+				RightHand->SetTrackingHand("Right");
+				RightHand->AttachToComponent(VRCameraRoot, HandRule);
+				RightHand->SetOwner(GetController());
+			}
 		}
 	}
+	
 }
 
 // Called every frame
@@ -217,6 +234,11 @@ void AVRCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PlayerInputComponent->BindAction("LeftTopButton", EInputEvent::IE_Pressed, this, &AVRCharacter::LeftTopButtonPressed);
 	PlayerInputComponent->BindAction("RightBottomButton", EInputEvent::IE_Pressed, this, &AVRCharacter::RightBottomButtonPressed);
 	PlayerInputComponent->BindAction("RightTopButton", EInputEvent::IE_Pressed, this, &AVRCharacter::RightTopButtonPressed);
+	
+	/*===================
+	Keyboard Input (Mainly for testing purposes)
+	=======================*/
+	PlayerInputComponent->BindAction("UnPossess", EInputEvent::IE_Pressed, this, &AVRCharacter::UnPossessPawn);
 
 }
 
@@ -461,4 +483,50 @@ void AVRCharacter::RightTopButtonPressed()
 	{
 		RightHand->TopButtonPressed();
 	}
+}
+
+void AVRCharacter::UnPossessPawn()
+{
+	if (GetLocalRole() >= ROLE_Authority)
+	{	
+		if (AMPPlayerController* PC = Cast<AMPPlayerController>(GetController()))
+		{
+			GEngine->AddOnScreenDebugMessage(42, 2.0f, FColor::Yellow, TEXT("Calling UnPossessPawn"));
+			PC->UnPossessPawn();
+		}
+	}
+}
+
+/*void AVRCharacter::Client_SetLeftPhysicsHand_Implementation(AVRPhysicsHand* Hand)
+{
+	if (!Hand)
+		return;
+}
+
+void AVRCharacter::Client_SetRightPhysicsHand_Implementation(AVRPhysicsHand* Hand)
+{
+	if (!Hand)
+		return;
+
+
+}*/
+
+void AVRCharacter::Server_ClientsActorReady_Implementation()
+{
+	if (!LeftHand || !RightHand)
+		return;
+
+	//LeftHand->SpawnPhysicsHands(GetController());
+	//Client_SetLeftPhysicsHand(LeftHand);
+
+	//LeftHand->SpawnPhysicsHands(GetController());
+	//Client_SetRightPhysicsHand(Right);
+}
+
+void AVRCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AVRCharacter, LeftHand);
+	DOREPLIFETIME(AVRCharacter, RightHand);
 }

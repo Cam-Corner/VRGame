@@ -2,7 +2,9 @@
 
 
 #include "TestingClass.h"
-#include "Kismet/KismetMathLibrary.h"
+#include "Utility/PhysicsSprings.h"
+//#include "Utility/ExtraMaths.h"
+
 
 // Sets default values
 ATestingClass::ATestingClass()
@@ -24,25 +26,57 @@ void ATestingClass::BeginPlay()
 {
 	Super::BeginPlay();
 }
-float OldForce = 0;
+
+
 // Called every frame
 void ATestingClass::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	
+	/*FVector CurrentRot = Moving->GetComponentQuat().Euler();
+	FVector DesiredRot = Goto->GetComponentQuat().Euler();
 
-	//F = -Kx
-	//F force
-	//K Stiffness
-	//X Distance
-	FVector LocA = Goto->GetComponentLocation();
-	FVector LocB = Moving->GetComponentLocation();
+	FVector XRot = XRotPID.Update(DeltaTime, CurrentRot.X, DesiredRot.X, -FVector::ForwardVector);
+	FVector YRot = YRotPID.Update(DeltaTime, CurrentRot.Y, DesiredRot.Y, -FVector::RightVector);
+	FVector ZRot = ZRotPID.Update(DeltaTime, CurrentRot.Z, DesiredRot.Z, FVector::UpVector);*/
 
-	float Diff = FVector::Distance(LocA, LocB);
-	float ForceAgainst = FVector(LocA - LocB).Size();
-	float SpringForce = Spring.Update(Diff, ForceAgainst);
-	FVector Dir = LocB - LocA;
-	Dir.Normalize();
+	//Moving->AddTorque(XRot + YRot + ZRot);
 
-	Moving->SetPhysicsLinearVelocity(Dir * SpringForce);
+	//FQuat CurrentRot = Moving->GetComponentQuat();
+	//FQuat DesiredRot = Goto->GetComponentQuat();
+	/*FQuat Diff = DesiredRot * CurrentRot.Inverse();
+	FQuat NewQuat = Diff * CurrentRot;*/
+
+	//Moving->SetWorldRotation(NewQuat);
+	//FVector T = QuatPID.Update(DeltaTime, CurrentRot, DesiredRot);
+	//Moving->AddTorque(T);
+
+
+	/*FVector T = RotSpring.GetRequiredTorque(Moving->GetForwardVector(), Goto->GetForwardVector(),
+		Moving->GetPhysicsAngularVelocity(), Goto->GetPhysicsAngularVelocity());
+	Moving->AddTorque(T);*/
+
+	/*FQuat CurrentRot = Moving->GetCompoen
+	FQuat DesiredRot = Goto->GetRelativeRotation().Quaternion();
+	FQuat Diff = CurrentRot * DesiredRot.Inverse();
+	FVector ToEuler = Diff.Euler();
+	FVector T = FVector(FMath::FindDeltaAngleDegrees(0, ToEuler.X),
+		FMath::FindDeltaAngleDegrees(0, ToEuler.Y), FMath::FindDeltaAngleDegrees(0, ToEuler.Z));
+	
+	Moving->SetPhysicsAngularVelocity(T);*/
+
+	FVector Current = Moving->GetForwardVector();
+	FVector Desired = Goto->GetForwardVector();
+	FVector T = XRotPID.Update(DeltaTime, Current, Desired);
+
+	Current = Moving->GetRightVector();
+	Desired = Goto->GetRightVector();
+	T += YRotPID.Update(DeltaTime, Current, Desired);
+
+	Current = Moving->GetUpVector();
+	Desired = Goto->GetUpVector();
+	T += ZRotPID.Update(DeltaTime, Current, Desired);
+
+	Moving->SetPhysicsAngularVelocityInDegrees(T);
 }
 

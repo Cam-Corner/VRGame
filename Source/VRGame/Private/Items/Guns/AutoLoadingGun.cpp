@@ -164,15 +164,18 @@ void AAutoLoadingGun::TopButtonPressed()
 	}
 }
 
-void AAutoLoadingGun::OffHandGrabbed(AVRHand* Hand, const FName& PartNameGrabbed)
+void AAutoLoadingGun::OffHandGrabbed(AVRPhysicsHand* Hand, const FName& PartNameGrabbed)
 {	
 	if (PartNameGrabbed == "ALG_Slider")
 	{
+		if (!Hand)
+			return;
+
 		bStuckInEmptyPos = false;
 		bHoldingSlider = true;
 		OffHand = Hand;
 		//OffHand->SetActorLocation(GunSliderMesh->GetComponentLocation());
-		OffHandStartingLocation = OffHand->GetMotionControllerLocation();
+		OffHandStartingLocation = OffHand->GetMotionController()->GetComponentLocation();
 		ActorLocationWhenGrabbed = GetActorLocation();
 
 		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, "Grabbed Gun Slider", true);
@@ -183,7 +186,7 @@ void AAutoLoadingGun::OffHandGrabbed(AVRHand* Hand, const FName& PartNameGrabbed
 		*/
 		FVector A = GetActorLocation();
 		FVector B = A + (-ReloadPartMesh->GetForwardVector() * ReloadSliderOffset);
-		FVector P = OffHand->GetMotionControllerLocation();
+		FVector P = OffHand->GetMotionController()->GetComponentLocation();
 		
 		FVector Result = ExtraMaths::PointProjectionOnLine(A, B, P);
 		
@@ -220,9 +223,6 @@ void AAutoLoadingGun::OffHandReleased()
 	OffHandStartingLocation = FVector(0, 0, 0);
 	DistanceGrabbedOnLine = 0;
 
-	if (MainHand)
-		SetActorRotation(MainHand->GetMotionControllerRotation());
-
 	//GEngine->AddOnScreenDebugMessage(-1, 25.0f, FColor::Blue, "Offhand Released!", true);
 }
 
@@ -248,15 +248,18 @@ void AAutoLoadingGun::OnMagazineReloadOverlapEnter(class UPrimitiveComponent* Ov
 		if (OtherComp->ComponentHasTag("Magazine"))
 		{
 			AGunMagazine* ThisMag = Cast<AGunMagazine>(OtherActor);
-			if (CurrentMagazine == NULL && ThisMag != NULL && ThisMag->GetClass() == DefaultGunMagazine)
+			if (CurrentMagazine == NULL && ThisMag != NULL)
 			{
-				if (ThisMag->HoldingInHand() && (MainHand != NULL || OffHand != NULL))
+				if (ThisMag->GetClass() == DefaultGunMagazine)
 				{
-					if (ThisMag->AttachToGun(this, LoadedMagazineOffset))
+					if (ThisMag->HoldingInHand() && (MainHand != NULL || OffHand != NULL))
 					{
-						CurrentMagazine = ThisMag;
+						if (ThisMag->AttachToGun(this, LoadedMagazineOffset))
+						{
+							CurrentMagazine = ThisMag;
+						}
+						//CurrentMagazine->AddActorLocalOffset(LoadedMagazineOffset * ItemBaseMesh->GetForwardVector());
 					}
-					//CurrentMagazine->AddActorLocalOffset(LoadedMagazineOffset * ItemBaseMesh->GetForwardVector());
 				}
 			}
 		}		
@@ -356,9 +359,15 @@ void AAutoLoadingGun::HandleHoldingSlider(float DeltaTime)
 
 void AAutoLoadingGun::HandleSliderMovement()
 {
+	if (!OffHand)
+		return;
+
+	if (!OffHand->GetMotionController())
+		return;
+
 	FVector A = GetActorLocation();
 	FVector B = A + (-ReloadPartMesh->GetForwardVector() * ReloadSliderOffset);
-	FVector P = OffHand->GetMotionControllerLocation();
+	FVector P = OffHand->GetMotionController()->GetComponentLocation();
 
 	FVector Result = ExtraMaths::PointProjectionOnLine(A, B, P);
 
@@ -462,11 +471,17 @@ void AAutoLoadingGun::HandleShells()
 
 void AAutoLoadingGun::HandleTwoHandedWeaponAiming()
 {
+	if (!OffHand || !MainHand)
+		return;
+
+	if (!OffHand->GetMotionController() || !MainHand->GetMotionController())
+		return;
+
 	if (MainHand && OffHand)
 	{
 		if (bTwoHandedGun)
 		{
-			FVector AimDirection = OffHand->GetMotionControllerLocation() - MainHand->GetMotionControllerLocation();
+			FVector AimDirection = OffHand->GetMotionController()->GetComponentLocation() - MainHand->GetMotionController()->GetComponentLocation();;
 			AimDirection.Normalize();
 			FRotator NewRotation = FRotationMatrix::MakeFromX(AimDirection).Rotator();
 			SetActorRotation(NewRotation);

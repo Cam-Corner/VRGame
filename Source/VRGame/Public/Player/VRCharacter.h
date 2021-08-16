@@ -8,6 +8,8 @@
 #include "VRCharacter.generated.h"
 
 class UVRCharacterComponent;
+class AVRTrackingHands;
+class AVRPhysicsHand;
 
 UCLASS()
 class VRGAME_API AVRCharacter : public APawn
@@ -102,10 +104,16 @@ private:
 //==========================
 	//Hand Code
 	UPROPERTY(EditAnywhere, Category = "VR Hands")
-		TSubclassOf<class AVRHand> BP_DefaultHand;
+		TSubclassOf<class AVRTrackingHands> BP_DefaultHand;
+		//TSubclassOf<class AVRHand> BP_DefaultHand;
 
-	class AVRHand* LeftHand;
-	class AVRHand* RightHand;
+	UPROPERTY(Replicated)
+	class AVRTrackingHands* LeftHand;
+	//class AVRHand* LeftHand;
+
+	UPROPERTY(Replicated)
+	class AVRTrackingHands* RightHand;
+	//class AVRHand* RightHand;
 
 	/* Spawn the vr hands */
 	void SpawnHands();
@@ -119,4 +127,16 @@ private:
 //==========================
 	UPROPERTY(EditAnywhere, Category = "Testing")
 		bool bNonVRTesting = false;
+
+	UFUNCTION()
+		void UnPossessPawn();
+
+	UFUNCTION(Server, Reliable)
+		void Server_ClientsActorReady();
+
+/*	UFUNCTION(Client, Reliable)
+		void Client_SetLeftPhysicsHand(AVRPhysicsHand* Hand);
+
+	UFUNCTION(Client, Reliable)
+		void Client_SetRightPhysicsHand(AVRPhysicsHand* Hand);*/
 };

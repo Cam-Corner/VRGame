@@ -9,6 +9,8 @@
 #include "Items/Guns/AutoLoadingGun.h"
 #include "Components/WidgetComponent.h"
 #include "Blueprint/UserWidget.h"
+#include "DrawDebugHelpers.h"
+#include "Components/BoxComponent.h"
 
 
 // Sets default values
@@ -42,6 +44,16 @@ AVRHand::AVRHand()
 	WidgetIC->bShowDebug = false;
 	WidgetIC->DebugColor = FColor::Blue;
 	WidgetIC->bEnableHitTesting = true;
+
+	MagicGrabBoxCol = CreateDefaultSubobject<UBoxComponent>(TEXT("MagicGrabBoxCol"));
+	MagicGrabBoxCol->SetupAttachment(MotionController);
+	MagicGrabBoxCol->OnComponentBeginOverlap.AddDynamic(this, &AVRHand::MagicGrabBoxOverlapBegin);
+	MagicGrabBoxCol->OnComponentEndOverlap.AddDynamic(this, &AVRHand::MagicGrabBoxOverlapEnd);
+
+	PhysicsHandMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PhysicsHandMesh"));
+	PhysicsHandMesh->SetupAttachment(GetRootComponent());
+	PhysicsHandMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	PhysicsHandMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
 }
 
 // Called when the game starts or when spawned
@@ -66,6 +78,34 @@ void AVRHand::Tick(float DeltaTime)
 			//GEngine->AddOnScreenDebugMessage(-1, INFINITY, FColor::Yellow, "Holding Weapon Slider!", true);
 		}
 	}
+
+	//Location
+	FVector CurrentVel = PhysicsHandMesh->GetPhysicsLinearVelocity();
+	FVector DesiredVel = MotionController->GetPhysicsLinearVelocity();
+	FVector CurrentLoc = PhysicsHandMesh->GetComponentLocation();
+	FVector DesiredLoc = MotionController->GetComponentLocation();
+	FVector SpringForce = MovementSpring.Update(CurrentLoc, DesiredLoc, CurrentVel, DesiredVel);
+
+	//PhysicsHandMesh->AddForce(SpringForce);
+	//PhysicsHandMesh->AddForce(MovementPID.Update(DeltaTime, CurrentLoc, DesiredLoc));
+
+	//Rotation
+	FVector RCurrentVel = PhysicsHandMesh->GetPhysicsAngularVelocity();
+	FVector RDesiredVel = MotionController->GetPhysicsAngularVelocity();
+
+	FVector CurrentRot = PhysicsHandMesh->GetForwardVector();
+	FVector DesiredRot = MotionController->GetForwardVector();
+	FVector FinalTorque = RotationalSpring.GetRequiredTorque(CurrentRot, DesiredRot, RCurrentVel, RDesiredVel);
+
+	CurrentRot = PhysicsHandMesh->GetRightVector();
+	DesiredRot = MotionController->GetRightVector();
+	FinalTorque += RotationalSpring.GetRequiredTorque(CurrentRot, DesiredRot, RCurrentVel, RDesiredVel);
+
+	CurrentRot = PhysicsHandMesh->GetUpVector();
+	DesiredRot = MotionController->GetUpVector();
+	FinalTorque += RotationalSpring.GetRequiredTorque(CurrentRot, DesiredRot, RCurrentVel, RDesiredVel);
+
+	PhysicsHandMesh->AddTorque(FinalTorque);
 }
 
 void AVRHand::CheckForUIHits()
@@ -90,25 +130,42 @@ Improve this later
 ============*/
 void AVRHand::GripPressed(float Value)
 {
-	if (Value > 0.5f && !bBeingHeld)
+	/*if (Value > 0.5f && !bBeingHeld)
 	{
 		bBeingHeld = true;
 		bool bGrabbedItem = false;
 
-		if (ItemInHand == NULL && OverlappedItems.Num() > 0)
+		if (ItemInHand == NULL)
 		{
-			if (OverlappedItems[0]->MainHandGrabbed(this))
+			if (OverlappedItems.Num() > 0)
 			{
-				ItemInHand = OverlappedItems[0];
-
-				if (ItemInHand)
+				if (OverlappedItems[0]->MainHandGrabbed(this))
 				{
-					ItemInHand->SetActorLocation(MotionController->GetComponentLocation());
-					ItemInHand->SetActorRotation(MotionController->GetComponentRotation());					
-					ItemInHand->AttachToComponent(MotionController, FAttachmentTransformRules::KeepWorldTransform);							
-					bGrabbedItem = true;
-				}
+					ItemInHand = OverlappedItems[0];
 
+					if (ItemInHand)
+					{
+						//ItemInHand->SetActorLocation(MotionController->GetComponentLocation());
+						//ItemInHand->SetActorRotation(MotionController->GetComponentRotation());					
+						//ItemInHand->AttachToComponent(MotionController, FAttachmentTransformRules::KeepWorldTransform);							
+						bGrabbedItem = true;
+					}
+
+				}
+			}
+			
+			if(MagicReachWeapons.Num() > 0 && !ItemInHand)
+			{
+				if (MagicReachWeapons[0]->MainHandGrabbed(this))
+				{
+					ItemInHand = MagicReachWeapons[0];
+
+					if (ItemInHand)
+					{						
+						bGrabbedItem = true;
+					}
+
+				}
 			}
 			//GEngine->AddOnScreenDebugMessage(-1, INFINITY, FColor::Yellow, "Grabbed Gun Left", true);
 		}
@@ -121,7 +178,7 @@ void AVRHand::GripPressed(float Value)
 				ItemComponentInHand = OverlappedItemComponents[0];
 				ItemComponentInHand.PartGrabbedItem->OffHandGrabbed(this, "Slider");
 			}*/
-			ItemComponentInHand = OverlappedItemComponents[0];
+			/*ItemComponentInHand = OverlappedItemComponents[0];
 			ItemComponentInHand.PartGrabbedItem->OffHandGrabbed(this, ItemComponentInHand.ItemPartGrabbed);
 		}
 	}
@@ -150,7 +207,7 @@ void AVRHand::GripPressed(float Value)
 
 		if(Value < 0.5f)
 			bBeingHeld = false;
-	}
+	}*/
 }
 
 void AVRHand::TriggerPressed(float Value)
@@ -258,6 +315,42 @@ void AVRHand::HandGrabSphereOverlapEnd(class UPrimitiveComponent* OverlappedComp
 						}
 					}
 				}
+			}
+		}
+	}
+}
+
+UFUNCTION()
+void AVRHand::MagicGrabBoxOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& HitResult)
+{
+	GEngine->AddOnScreenDebugMessage(66, 5.0f, FColor::Yellow, "NULL", true);
+	if (OtherActor != NULL)
+	{
+		GEngine->AddOnScreenDebugMessage(66, 5.0f, FColor::Yellow, "Overlapp", true);
+		AVRWeapon* ThisWeapon = Cast<AVRWeapon>(OtherActor);
+		if (ThisWeapon != NULL)
+		{
+			GEngine->AddOnScreenDebugMessage(66, 5.0f, FColor::Yellow, "Overlapp: Is Weapon", true);
+			if (ThisWeapon->CanGrabItem())
+			{
+				GEngine->AddOnScreenDebugMessage(66, 5.0f, FColor::Yellow, "Overlapp: Added", true);
+				MagicReachWeapons.Add(ThisWeapon);
+			}
+		}
+	}
+}
+
+UFUNCTION()
+void AVRHand::MagicGrabBoxOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	if (OtherActor != NULL)
+	{
+		AVRWeapon* ThisWeapon = Cast<AVRWeapon>(OtherActor);
+		if (ThisWeapon != NULL)
+		{
+			if (!ThisWeapon->HoldingInHand())
+			{
+				MagicReachWeapons.Remove(ThisWeapon);
 			}
 		}
 	}

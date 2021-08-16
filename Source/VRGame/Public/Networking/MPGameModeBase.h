@@ -8,6 +8,8 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAMPGameModeBase, Log, All);
 
+class APlayerController;
+
 class AMPPlayerController;
 /**
  * 
@@ -27,6 +29,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
+
+	void HandlePlayerJoined(APlayerController* NewPlayer);
 
 private:
 	TArray<AMPPlayerController*> PlayerControllers;

@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "MotionControllerComponent.h"
 #include "Components/WidgetInteractionComponent.h"
+#include "Utility/PhysicsSprings.h"
 #include "VRHand.generated.h"
 
 USTRUCT()
@@ -17,7 +18,6 @@ struct FItemComponent
 	UPrimitiveComponent* PartGrabbed;
 	class AVRItem* PartGrabbedItem;
 };
-
 
 UCLASS()
 class VRGAME_API AVRHand : public AActor
@@ -42,6 +42,11 @@ public:
 	FRotator GetMotionControllerRotation()
 	{
 		return MotionController->GetComponentRotation();
+	}
+
+	UMotionControllerComponent* GetMotionController()
+	{
+		return MotionController;
 	}
 
 	void DropItemsInHand();
@@ -73,6 +78,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "HandMesh")
 		class UStaticMeshComponent* HandMesh;
 
+	UPROPERTY(VisibleAnywhere, Category = "HandMesh")
+		class UStaticMeshComponent* PhysicsHandMesh;
+
 	/* The Collision mesh of the hand */
 	UPROPERTY(VisibleAnywhere, Category = "HandMesh")
 		class USphereComponent* HandMeshCol;
@@ -88,6 +96,18 @@ private:
 	UFUNCTION() 
 	void HandGrabSphereOverlapEnd(class UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 													  class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	/** function that is called when the hand overlaps something */
+	UFUNCTION()
+		void MagicGrabBoxOverlapBegin(class UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+			class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+			const FHitResult& HitResult);
+
+	/** function that is called when the hand leaves an overlaped object */
+	UFUNCTION()
+		void MagicGrabBoxOverlapEnd(class UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+			class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
 	void UWInteractPressed();
 
 	void UWInteractReleased();
@@ -101,13 +121,25 @@ private:
 
 	class AVRItem* ItemInHand = NULL;
 
+	TArray<class AVRWeapon*> MagicReachWeapons;
+
 	class USceneComponent* RootComp;
 
 	FItemComponent ItemComponentInHand;
+
+	UPROPERTY(VisibleAnywhere)
+	class UBoxComponent* MagicGrabBoxCol;
 
 	bool bBeingHeld = false;
 
 	UWidgetInteractionComponent* WidgetIC;
 
 	void CheckForUIHits();
+
+	UPROPERTY(EditAnywhere, Category = "Physics Handlers")
+	FLinearSpring MovementSpring;
+
+	UPROPERTY(EditAnywhere, Category = "Physics Handlers")
+	FTorsionalSpring RotationalSpring;
+
 };

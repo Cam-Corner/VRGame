@@ -42,9 +42,11 @@ void UVRCharacterComponent::BeginPlay()
 		ServerSideCap->SetupAttachment(GetOwner()->GetRootComponent());
 
 	if (VRCharacterCapsule)
-		ServerSideCap->SetWorldLocation(VRCharacterCapsule->GetComponentLocation());
+	{
+		ServerSideCap->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 
-	ServerSideCap->bHiddenInGame = false;
+		ServerSideCap->SetWorldLocation(VRCharacterCapsule->GetComponentLocation());
+	}
 }
 
 // Called every frame
@@ -112,7 +114,7 @@ void UVRCharacterComponent::SetXYMovementDirection(FVector2D Dir)
 
 	GEngine->AddOnScreenDebugMessage(20, 0.1f, FColor::Blue, Dir.ToString(), true);
 
-	float ThumbstickDeadzone = 0.2f;
+	float ThumbstickDeadzone = 0.5f;
 
 	if (Dir.X > ThumbstickDeadzone || Dir.X < -ThumbstickDeadzone || Dir.Y > ThumbstickDeadzone || Dir.Y < -ThumbstickDeadzone)
 	{
@@ -182,30 +184,43 @@ void UVRCharacterComponent::NetworkedMovement(float DeltaTime)
 	if (AVRCharacter* VRC = Cast<AVRCharacter>(GetOwner()))
 	{
 		if (VRC->IsLocallyControlled())
-		{
+		{			
 			LocalMovement(DeltaTime);
 			MoveCollisionToHMD(DeltaTime);
-			//ApplyGravity(DeltaTime);
+			ApplyGravity(DeltaTime);
 			SmoothRotation(DeltaTime);
-			CheckHMDDistanceFromCollision();
 			CheckToSeeIfCameraIsInsideObject();		
 			ScaleCollisionWithPlayerNetworked(true);
-
+			CheckHMDDistanceFromCollision();
+			
+			if (VRCharacterCamera)
+			{
+				Server_SetHMDLocation(VRCharacterCamera->GetComponentLocation());
+			}
+			
+			LastCapLocation = VRCharacterCapsule->GetComponentLocation();
 			bLocallyControlled = true;
 		}		
 	} 
 	
 	if (Role >= ROLE_Authority)
 	{
-		AuthorativeMovement(DeltaTime);
+		//AuthorativeMovement(DeltaTime);
 
-		if(VRCharacterCapsule)
-			SyncedServerLocation = VRCharacterCapsule->GetComponentLocation();
+		//if(VRCharacterCapsule)
+			//SyncedServerLocation = VRCharacterCapsule->GetComponentLocation();
 	} 
 	
 	if (Role >= ROLE_SimulatedProxy && !bLocallyControlled)
 	{
+		if (VRCharacterCamera)
+			VRCharacterCamera->SetWorldLocation(SyncedHMDLocation);
+
+		//MoveCollisionToHMD(DeltaTime);
+		CheckHMDDistanceFromCollision();
+		CheckToSeeIfCameraIsInsideObject();
 		SimulatedProxyMovement(DeltaTime);
+		
 		if (ActorsCapHalfHeight != OldCapHalfHeight)
 		{
 			OldCapHalfHeight = ActorsCapHalfHeight;
@@ -402,7 +417,6 @@ void UVRCharacterComponent::AuthorativeMovement(float DeltaTime)
 			NewMove.bStillMoving, Move.bIsGravity);
 
 		ClientsMoves.RemoveAt(0);
-
 	}
 }
 
@@ -746,11 +760,11 @@ void UVRCharacterComponent::MoveCollisionToHMD(float DeltaTime)
 	Dir.Z = 0;
 	float Distance = Dir.Size();
 	Dir.Normalize();
-	//MovePlayerCapsule(Dir, Distance);
+	MovePlayerCapsule(Dir, Distance, VRCharacterCapsule, false, true);
 
 	if (LastCapLocation != VRCharacterCapsule->GetComponentLocation())
 	{
-		MovePlayerCapsuleWithServerSynced(Dir, Distance, VRCharacterCapsule, false, true, DeltaTime);
+		//MovePlayerCapsuleWithServerSynced(Dir, Distance, VRCharacterCapsule, false, true, DeltaTime);
 		LastCapLocation = VRCharacterCapsule->GetComponentLocation();
 	}
 	
@@ -952,8 +966,8 @@ void UVRCharacterComponent::MovePlayerCapsuleWithServerSynced(FVector Dir, float
 		NetMulticast_SendMove(NewMove.Dir, NewMove.LastServerLocation, NewMove.LastServerWorldDelta, 
 			NewMove.bStillMoving, bIsGravity);
 
-		if (ServerSideCap)
-			ServerSideCap->SetWorldLocation(Move.EndLocation);
+		//if (ServerSideCap)
+		//	ServerSideCap->SetWorldLocation(Move.EndLocation);
 	}
 	else
 	{
@@ -1195,7 +1209,12 @@ void UVRCharacterComponent::SphereCast(FHitResult& Result, FVector StartLoc, FVe
 	SphereTrace.SetSphere(SphereRadius);
 
 	GetWorld()->SweepSingleByChannel(Result, StartLoc, EndLoc, VRCharacterCapsule->GetComponentQuat(),
-		ECollisionChannel::ECC_WorldDynamic, SphereTrace, SphereParams);
+		ECollisionChannel::ECC_GameTraceChannel1, SphereTrace, SphereParams);
+}
+
+void UVRCharacterComponent::Server_SetHMDLocation_Implementation(FVector SetHMDLocation)
+{
+	SyncedHMDLocation = SetHMDLocation;
 }
 
 void UVRCharacterComponent::Server_SetNewHalfHeight_Implementation(float NewHalfHeight)
@@ -1252,7 +1271,20 @@ void UVRCharacterComponent::Server_SendMove_Implementation(FVector Dir, float De
 	Move.EndLocation = EndLocation;
 	Move.DeltaTime = DeltaTime;
 	Move.bIsGravity = bIsGravity;
-	ClientsMoves.Add(Move);
+	//ClientsMoves.Add(Move);
+
+	FClientSide_Prediction NewMove;
+	NewMove.LastServerWorldDelta = UGameplayStatics::GetGameState(GetWorld())->GetServerWorldTimeSeconds();
+	NewMove.LastServerLocation = SyncedServerLocation;
+	NewMove.Dir = Move.Dir;
+
+	if (Move.Dir == FVector::ZeroVector)
+		NewMove.bStillMoving = false;
+	else
+		NewMove.bStillMoving = true;
+
+	NetMulticast_SendMove(NewMove.Dir, EndLocation, NewMove.LastServerWorldDelta,
+		NewMove.bStillMoving, NewMove.bIsGravity);
 }
 
 void UVRCharacterComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -1261,4 +1293,5 @@ void UVRCharacterComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 	DOREPLIFETIME(UVRCharacterComponent, SyncedServerLocation);
 	DOREPLIFETIME(UVRCharacterComponent, ActorsCapHalfHeight);
+	DOREPLIFETIME(UVRCharacterComponent, SyncedHMDLocation);
 }

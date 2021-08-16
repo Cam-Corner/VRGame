@@ -34,19 +34,18 @@ void AMPGameModeBase::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
 
-	if (AMPPlayerController* PC = Cast<AMPPlayerController>(NewPlayer))
-	{
-		PlayerControllers.Add(PC);
-
-		UE_LOG(LogAMPGameModeBase, Warning, TEXT("Client Connected!"));
-	}
+	HandlePlayerJoined(NewPlayer);
 }
 
 void AMPGameModeBase::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
 {
 	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
 
+	HandlePlayerJoined(NewPlayer);
+}
 
+void AMPGameModeBase::HandlePlayerJoined(APlayerController* NewPlayer)
+{
 	if (AMPPlayerController* PC = Cast<AMPPlayerController>(NewPlayer))
 	{
 		PlayerControllers.Add(PC);
