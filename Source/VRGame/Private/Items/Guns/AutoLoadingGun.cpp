@@ -210,6 +210,7 @@ void AAutoLoadingGun::OffHandGrabbed(AVRPhysicsHand* Hand, const FName& PartName
 	else if (PartNameGrabbed == "ALG_OffHandGrab")
 	{
 		bOffHandHoldingWeapon = true;
+		SetHoldingTwoHanded(true);
 		OffHand = Hand;
 	}
 }
@@ -222,7 +223,7 @@ void AAutoLoadingGun::OffHandReleased()
 	bOffHandHoldingWeapon = false;
 	OffHandStartingLocation = FVector(0, 0, 0);
 	DistanceGrabbedOnLine = 0;
-
+	SetHoldingTwoHanded(false);
 	//GEngine->AddOnScreenDebugMessage(-1, 25.0f, FColor::Blue, "Offhand Released!", true);
 }
 

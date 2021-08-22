@@ -98,112 +98,13 @@ private:
 	}
 };
 
-USTRUCT(BlueprintType)
-struct FPIDController
+/*USTRUCT(BlueprintType)
+struct FPIDControllerData
 {
 	GENERATED_BODY()
 
-public:
-	FPIDController() {}
-	/**
-	* P = Proportional
-	* I = Integral
-	* D = Derivative
-	*/
-	FPIDController(float FM, float P, float I, float D)
-	{
-		SetPIDValue(FM, P, I, D);
-	}
-
-	float Update(float DeltaTime, float CurrentValue, float DesiredValue)
-	{
-		float ThisError = DesiredValue - CurrentValue;
-		float ThisIntegral = IntegralPrior + ThisError * DeltaTime;
-		float ThisDerivative = (ThisError - ErrorPrior) / DeltaTime;
-		float Output = (Proportional * ErrorPrior) + (ThisIntegral * Integral) + (ThisDerivative * Derivative);
-
-		ErrorPrior = ThisError;
-		IntegralPrior = ThisIntegral;
-
-		return Output * ForceMultiplier;
-	}
-
-	/**
-	* P = Proportional
-	* I = Integral
-	* D = Derivative
-	*/
-	void SetPIDValue(float FM, float P, float I, float D)
-	{
-		ForceMultiplier = FM;
-		Proportional = P;
-		Integral = I;
-		Derivative = D;
-	}
-
-protected:
 	UPROPERTY(EditAnywhere)
-	float ForceMultiplier = 1.0f;
-
-	UPROPERTY(EditAnywhere)
-	float Proportional = 0.05f;
-
-	UPROPERTY(EditAnywhere)
-	float Integral = 0.05f;
-
-	UPROPERTY(EditAnywhere)
-	float Derivative = 0.05f;
-
-private:
-	float ErrorPrior = 0;
-	float IntegralPrior = 0;
-};
-
-USTRUCT(BlueprintType)
-struct FPIDController3D
-{
-	GENERATED_BODY()
-
-public:
-	FPIDController3D() {}
-
-	/**
-	* P = Proportional
-	* I = Integral
-	* D = Derivative
-	*/
-	FPIDController3D(float FM, float P, float I, float D)
-	{
-		SetPIDValue(FM, P, I, D);
-	}
-
-	/**
-	* P = Proportional
-	* I = Integral
-	* D = Derivative
-	*/
-	void SetPIDValue(float FM, float P, float I, float D)
-	{
-		XPID.SetPIDValue(FM, P, I, D);
-		YPID.SetPIDValue(FM, P, I, D);
-		ZPID.SetPIDValue(FM, P, I, D);
-	}
-
-	FVector Update(float DeltaTime, FVector CurrentValue, FVector DesiredValue)
-	{
-		FVector Result = FVector(0, 0, 0);
-
-		SetPIDValue(ForceMultiplier, Proportional, Integral, Derivative);
-
-		Result.X = XPID.Update(DeltaTime, CurrentValue.X, DesiredValue.X);
-		Result.Y = YPID.Update(DeltaTime, CurrentValue.Y, DesiredValue.Y);
-		Result.Z = ZPID.Update(DeltaTime, CurrentValue.Z, DesiredValue.Z);
-
-		return Result;
-	}
-
-	UPROPERTY(EditAnywhere)
-	float ForceMultiplier = 1.0f;
+		float ForceMultiplier = 1.0f;
 
 	UPROPERTY(EditAnywhere)
 		float Proportional = 0.05f;
@@ -214,6 +115,105 @@ public:
 	UPROPERTY(EditAnywhere)
 		float Derivative = 0.05f;
 
+	FPIDControllerData operator/(const float& Value)
+	{
+		FPIDControllerData NewValues;
+		NewValues.ForceMultiplier = ForceMultiplier / Value;
+		NewValues.Derivative = Derivative / Value;
+		NewValues.Integral = Integral / Value;
+		NewValues.Proportional = Proportional / Value;
+		return NewValues;
+	}
+
+};
+
+USTRUCT(BlueprintType)
+struct FPIDController
+{
+	GENERATED_BODY()
+
+public:
+	FPIDController() {}
+
+	float Update(float DeltaTime, float CurrentValue, float DesiredValue)
+	{
+		float ThisError = DesiredValue - CurrentValue;
+		float ThisIntegral = IntegralPrior + ThisError * DeltaTime;
+		float ThisDerivative = (ThisError - ErrorPrior) / DeltaTime;
+		float Output = (PIDData.Proportional * ErrorPrior) + (ThisIntegral * PIDData.Integral) + (ThisDerivative * PIDData.Derivative);
+
+		ErrorPrior = ThisError;
+		IntegralPrior = ThisIntegral;
+
+		return Output * PIDData.ForceMultiplier;
+	}
+	*/
+	/**
+	* P = Proportional
+	* I = Integral
+	* D = Derivative
+	*/
+	/*void SetPIDValue(FPIDControllerData InPIDData)
+	{
+		PIDData = InPIDData;
+	}
+
+	FPIDControllerData GetPIDSettings()
+	{ 
+		return  PIDData;
+	}
+
+protected:
+	UPROPERTY(EditAnywhere)
+		FPIDControllerData PIDData;
+
+private:
+	float ErrorPrior = 0;
+	float IntegralPrior = 0;
+};
+*/
+/*USTRUCT(BlueprintType)
+struct FPIDController3D
+{
+	GENERATED_BODY()
+
+public:
+	FPIDController3D() {}
+	*/
+	/**
+	* P = Proportional
+	* I = Integral
+	* D = Derivative
+	*/
+	/*void SetPIDValue(FPIDControllerData InPIDData)
+	{
+		PIDData = InPIDData;
+	}
+
+	FVector Update(float DeltaTime, FVector CurrentValue, FVector DesiredValue)
+	{
+		FVector Result = FVector(0, 0, 0);
+
+		XPID.SetPIDValue(PIDData);
+		YPID.SetPIDValue(PIDData);
+		ZPID.SetPIDValue(PIDData);
+
+		Result.X = XPID.Update(DeltaTime, CurrentValue.X, DesiredValue.X);
+		Result.Y = YPID.Update(DeltaTime, CurrentValue.Y, DesiredValue.Y);
+		Result.Z = ZPID.Update(DeltaTime, CurrentValue.Z, DesiredValue.Z);
+
+		return Result;
+	}
+
+	FPIDControllerData GetPIDSettings()
+	{
+		return  PIDData;
+	}
+
+protected:
+	UPROPERTY(EditAnywhere)
+		FPIDControllerData PIDData;
+
 private:
 	float ErrorPrior = 0;
 	float IntegralPrior = 0;
@@ -221,44 +221,32 @@ private:
 	FPIDController XPID;
 	FPIDController YPID;
 	FPIDController ZPID;
-};
+};*/
 
-USTRUCT(BlueprintType)
+/*USTRUCT(BlueprintType)
 struct FQuatPDController
 {
 	GENERATED_BODY()
 
 public:
 	FQuatPDController() {}
-
+	*/
+	
 	/**
 	* P = Proportional
 	* I = Integral
 	* D = Derivative
 	*/
-	FQuatPDController(float FM, float P, float I, float D)
+	/*void SetPIDValue(FPIDControllerData InPIDData)
 	{
-		SetPIDValue(FM, P, I, D);
-	}
-
-	/**
-	* P = Proportional
-	* I = Integral
-	* D = Derivative
-	*/
-	void SetPIDValue(float FM, float P, float I, float D)
-	{
-		ForceMultiplier = FM;
-		Proportional = P;
-		Integral = I;
-		Derivative = D;
-	}
+		PIDData = InPIDData;
+	}*/
 
 	/*
 	* CQuat = Current Quaternion Value
 	* DQuat = Desired Quaternion Value
 	*/
-	FVector Update(float DeltaTime, FQuat CQuat, FQuat DQuat, FVector AVel, FVector InertiaTensor)
+	/*FVector Update(float DeltaTime, FQuat CQuat, FQuat DQuat, FVector AVel, FVector InertiaTensor)
 	{
 		FVector Axis = FVector::ZeroVector;
 		float Angle = 0;
@@ -275,23 +263,21 @@ public:
 		Error.ToAxisAndAngle(Axis, Angle);
 		Axis.Normalize();
 		FVector::DegreesToRadians(Axis);
-		FVector Value = Proportional * Axis * Angle - Derivative * AVel;
+		FVector Value = PIDData.Proportional * Axis * Angle - PIDData.Derivative * AVel;
 		FQuat RotInertia2World = InertiaTensor.ToOrientationQuat() * CQuat;
 		Value = RotInertia2World.Inverse() * Value;
 		Value *= InertiaTensor;
 		Value = RotInertia2World * Value;
-		return Value * ForceMultiplier;
+		return Value * PIDData.ForceMultiplier;
 	}
 
-	UPROPERTY(EditAnywhere)
-		float ForceMultiplier = 1.0f;
+	FPIDControllerData GetPIDSettings()
+	{
+		return  PIDData;
+	}
 
+protected:
 	UPROPERTY(EditAnywhere)
-		float Proportional = 0.05f;
-
-	//UPROPERTY(EditAnywhere)
-		float Integral = 0.05f;
-
-	UPROPERTY(EditAnywhere)
-		float Derivative = 0.05f;
+		FPIDControllerData PIDData;
 };
+*/

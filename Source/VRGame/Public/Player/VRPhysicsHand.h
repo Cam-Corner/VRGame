@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Utility/PhysicsSprings.h"
+#include "Utility/PIDControllers.h"
 #include "Player/VRHand.h"
 #include "VRPhysicsHand.generated.h"
 
@@ -45,6 +45,8 @@ public:
 
 	class UMotionControllerComponent* GetMotionController();
 
+	const FTransform GetTrackingHandTransform();
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -67,11 +69,24 @@ protected:
 	void PhysicsMoveCollisionToHand(float DeltaTime);
 
 	void MovePhysicsItemToHand(float DeltaTime);
+
+	
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
 protected:
+	FCalculateCustomPhysics OnCalcCustomPhysics;
+	void CustomPhysics(float DeltaTime, FBodyInstance* BodyInstance);
+
+	/**Location PID Controller Settings For This Gun*/
+	UPROPERTY(EditAnywhere, Category = "Physics Tuning")
+		FPDController3D LocPD;
+
+	/**Rotation PD Controller Settings For This Gun*/
+	UPROPERTY(EditAnywhere, Category = "Physics Tuning")
+		FQuatPDController RotPD;
+
 	/** The Skeletal Mesh of the hand */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HandMesh")
 		USkeletalMeshComponent* HandSK;
@@ -86,12 +101,6 @@ private:
 	/** The object this hand is trying to follow / reach by physics */
 	UPROPERTY(Replicated)
 	AVRTrackingHands* TrackingHands;
-
-	UPROPERTY(EditAnywhere, Category = "PhysicsHandlers")
-		FPIDController3D LocPID;
-
-	UPROPERTY(EditAnywhere, Category = "PhysicsHandlers")
-		FQuatPDController RotPD;	
 
 	/** The item that is being held in the hand */
 	AVRItem* ItemInHand = NULL;
@@ -116,8 +125,6 @@ private:
 	bool bInGripPose = false;
 
 	bool bDoOnceOnTick = false;
-
-	float OldPIDForce = 0;
 
 /*======
 Server stuff

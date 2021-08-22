@@ -35,7 +35,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "ActorFollow")
 		AActor* FollowActor;
 
-	UPROPERTY(EditAnywhere, Category = "PID Controllers")
-		FQuatPDController QuatPD;
+	//UPROPERTY(EditAnywhere, Category = "PID Controllers")
+	//	FQuatPDController QuatPD;
 
 };

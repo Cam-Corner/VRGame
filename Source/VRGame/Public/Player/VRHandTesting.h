@@ -41,6 +41,6 @@ private:
 	UPROPERTY(VisibleAnywhere)
 		UStaticMeshComponent* PhysicsHand;
 
-	UPROPERTY(EditAnywhere)
-		FPIDController3D MovementPID;
+	//UPROPERTY(EditAnywhere)
+	//	FPIDController3D MovementPID;
 };

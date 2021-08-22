@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Player/VRPhysicsHand.h"
-#include "Utility/PhysicsSprings.h"
+#include "Utility/PIDControllers.h"
 #include "VRItem.generated.h"
 
 class AVRPhysicsHand;
@@ -23,10 +23,10 @@ public:
 	class UStaticMeshComponent* GetPhysicsMesh() { return ItemBaseMesh; }
 
 	UFUNCTION(BlueprintNativeEvent)
-		UPrimitiveComponent* GetGripConstraint();
+		UPrimitiveComponent* GetMainHandGrip();
 
 	UFUNCTION(BlueprintNativeEvent)
-		UPrimitiveComponent* GetOffHandGripConstraint();
+		UPrimitiveComponent* GetOffHandGrip();
 
 protected:
 	// Called when the game starts or when spawned
@@ -34,6 +34,7 @@ protected:
 
 	virtual void Tick(float DetalTime) override;
 
+	void SetHoldingTwoHanded(bool InbTwoHanded) { bTwoHanded = InbTwoHanded; }
 public:	
 
 	/* Called When Trigger is pressed */
@@ -91,6 +92,7 @@ public:
 	/* Tell the hand to drop this item */
 	void DropItemFromHand() { bShouldDropNextFrame = true; }
 
+
 private:
 	/* Is the weapon already been held */
 	bool bItemHeald = false;
@@ -113,18 +115,19 @@ protected:
 	bool bShouldDropNextFrame = false;
 
 	void MoveItemToHand(float DeltaTime);
-
-	bool bHitSomething = false;
-	FHitResult LastHitResult;
-
-	UFUNCTION()
-		void OnItemHit(class UPrimitiveComponent* HitComp, AActor* OtherActor,
-			UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	bool bTwoHanded = false;
 
 	virtual void PhysicsTick_Implementation(float SubsetDeltaTime);
 	FCalculateCustomPhysics OnCalcCustomPhysics;
 	void CustomPhysics(float DeltaTime, FBodyInstance* BodyInstance);
 
+	/**Location PID Controller Settings For This Gun*/
+	UPROPERTY(EditAnywhere, Category = "Physics Tuning")
+		FPDController3D LocPD;
+
+	/**Rotation PD Controller Settings For This Gun*/
+	UPROPERTY(EditAnywhere, Category = "Physics Tuning")
+		FQuatPDController RotPD;
 
 /*======
 Server stuff

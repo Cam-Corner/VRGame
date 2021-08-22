@@ -39,7 +39,7 @@ void AVRHandTesting::Tick(float DeltaTime)
 
 	FVector CurrentLoc = PhysicsHand->GetComponentLocation();
 	FVector DesiredLoc = NonPhysicsHand->GetComponentLocation();
-	PhysicsHand->AddForce(MovementPID.Update(DeltaTime, CurrentLoc, DesiredLoc));
+//	PhysicsHand->AddForce(MovementPID.Update(DeltaTime, CurrentLoc, DesiredLoc));
 
 }
 

@@ -16,16 +16,15 @@ AVRItem::AVRItem()
 	ItemBaseMesh = CreateDefaultSubobject<UStaticMeshComponent>("Item Base Mesh");
 	ItemBaseMesh->SetSimulatePhysics(true);
 	RootComponent = ItemBaseMesh;
+
+	OnCalcCustomPhysics.BindUObject(this, &AVRItem::CustomPhysics);
 }
 
 // Called when the game starts or when spawned
 void AVRItem::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	//ItemBaseMesh->OnComponentHit.AddDynamic(this, &AVRItem::OnItemHit);
-	//OnCalcCustomPhysics.BindUObject(this, &AVRItem::CustomPhysics);
-	
+		
 }
 
 // Called every frame
@@ -33,13 +32,10 @@ void AVRItem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-
-	//MoveItemToHand(DeltaTime);
-
-	/*if (ItemBaseMesh->GetBodyInstance())
+	if (ItemBaseMesh->GetBodyInstance())
 	{
 		ItemBaseMesh->GetBodyInstance()->AddCustomPhysics(OnCalcCustomPhysics);
-	}*/
+	}
 
 	if (!bItemHeald && MainHand)
 		MainHand = NULL;
@@ -52,11 +48,6 @@ bool AVRItem::MainHandGrabbed(AVRPhysicsHand* Hand)
 
 	MainHand = Hand;
 	bItemHeald = true;
-	//ItemBaseMesh->SetEnableGravity(false);
-	//ItemBaseMesh->SetMassOverrideInKg(NAME_None, 0.001f, true);
-	//GEngine->AddOnScreenDebugMessage(-1, INFINITY, FColor::Yellow, "Weapon Grabbed", true);
-	//ItemBaseMesh->SetEnableGravity(false);
-	//ItemBaseMesh->SetSimulatePhysics(false);
 
 	return true;
 }
@@ -68,18 +59,12 @@ void AVRItem::MainHandReleased()
 
 	bShouldDropNextFrame = false;
 	bItemHeald = false;
-	//ItemBaseMesh->SetEnableGravity(true);
 	MainHand = NULL;
-	//GEngine->AddOnScreenDebugMessage(-1, INFINITY, FColor::Yellow, "Weapon Released", true);
-	//DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-	//ItemBaseMesh->SetMassOverrideInKg(NAME_None, 10, true);
-	//ItemBaseMesh->SetSimulatePhysics(true);
 }
 
 void AVRItem::TriggerPressed()
 {
-	//if(GetLocalRole() >= ROLE_)
-	//if(GetOwner() == UGameplayStatics::GetPlayerController())
+
 }
 
 void AVRItem::TriggerReleased()
@@ -121,79 +106,61 @@ void AVRItem::MoveItemToHand(float DeltaTime)
 	if (!MainHand)
 		return;
 
-	//Location
-	/*FVector CurrentVel = ItemBaseMesh->GetBodyInstance()->GetUnrealWorldVelocity();
-	FVector DesiredVel = MainHand->GetMotionController()->GetPhysicsLinearVelocity();
-	FVector CurrentLoc = ItemBaseMesh->GetComponentLocation();
-	FVector DesiredLoc = MainHand->GetMotionControllerLocation();
+	FBodyInstance* BI = ItemBaseMesh->GetBodyInstance();
 
-	FVector SpringForce = MovementSpring.Update(CurrentLoc, DesiredLoc, CurrentVel, DesiredVel);
+	FVector CurrentLoc = BI->GetUnrealWorldTransform().GetLocation();
+	CurrentLoc += BI->GetUnrealWorldTransform().GetRotation().GetForwardVector() * -11;
+
+	FVector F = LocPD.GetForce(DeltaTime, CurrentLoc,
+		MainHand->GetTrackingHandTransform().GetLocation());
+	BI->AddForce(F * BI->GetBodyMass(), false);
+
+	FQuat CQuat = BI->GetUnrealWorldTransform().GetRotation();
+	FQuat DQuat = MainHand->GetTrackingHandTransform().GetRotation();
+	FVector Vel = BI->GetUnrealWorldAngularVelocityInRadians();
+	FVector IT = BI->GetBodyInertiaTensor();
+
+	if (bTwoHanded && OffHand)
+	{
+		/*FVector ForwardV = BI->GetUnrealWorldTransform().GetRotation().GetForwardVector();
+		FQuat ForwardQ = FQuat.m
+		CQuat = ForwardQ;*/
+
+		FVector Dir = OffHand->GetMotionController()->GetComponentLocation()
+			- MainHand->GetMotionController()->GetComponentLocation();
+		Dir.Normalize();
+
+		FQuat Add = Dir.ToOrientationQuat();
+		FQuat Diff = Add * DQuat.Inverse();
+		DQuat = Diff * DQuat;
+
+	}
+
+	FVector T = RotPD.GetTorque(DeltaTime, CQuat, DQuat, Vel, IT);
+	BI->AddTorqueInRadians(T, false);
+
+	if (MainHand)
+	{
+		MainHand->SetActorLocation(GetMainHandGrip()->GetComponentLocation());
+		MainHand->SetActorRotation(GetMainHandGrip()->GetComponentRotation());
+	}
 	
-	/*if(!bHitSomething)
-		ItemBaseMesh->GetBodyInstance()->AddForce(SpringForce, false);
-	else
-		ItemBaseMesh->GetBodyInstance()->AddForce(FVector::ZeroVector, false, true);
-	
-	//MovementPID.SetPIDValue(Proportional, Integral, Derivative);
-	ItemBaseMesh->GetBodyInstance()->AddForce(MovementPID.Update(DeltaTime, CurrentLoc, DesiredLoc), false);
-	ItemBaseMesh->GetBodyInstance()->AddForce(SpringForce, false);
-
-	bHitSomething = false;
-	
-	//Rotation
-	FVector RCurrentVel = ItemBaseMesh->GetBodyInstance()->GetUnrealWorldAngularVelocityInRadians();
-	RCurrentVel = FVector::RadiansToDegrees(RCurrentVel);
-	FVector RDesiredVel = MainHand->GetMotionController()->GetPhysicsAngularVelocity();
-	
-	FVector CurrentRot = GetActorForwardVector();
-	FVector DesiredRot = MainHand->GetMotionController()->GetForwardVector();
-	FVector FinalTorque = RotationSpring.GetRequiredTorque(CurrentRot, DesiredRot, RCurrentVel, RDesiredVel);
-
-	CurrentRot = GetActorRightVector();
-	DesiredRot = MainHand->GetMotionController()->GetRightVector();
-	FinalTorque += RotationSpring.GetRequiredTorque(CurrentRot, DesiredRot, RCurrentVel, RDesiredVel);
-
-	CurrentRot = GetActorUpVector();
-	DesiredRot = MainHand->GetMotionController()->GetUpVector();
-	FinalTorque += RotationSpring.GetRequiredTorque(CurrentRot, DesiredRot, RCurrentVel, RDesiredVel);
-
-	ItemBaseMesh->GetBodyInstance()->AddTorqueInRadians(FVector::DegreesToRadians(FinalTorque), false);*/
-
-
-	/*SetActorLocation(MainHand->GetActorLocation());
-
-	FQuat MQuat = MainHand->GetActorQuat();
-	MQuat *= FQuat::MakeFromEuler(FVector(-90, 0, 0));
-	SetActorRotation(MQuat);
-
-	AddActorWorldOffset(GetActorForwardVector() * 4);
-	AddActorWorldOffset(GetActorRightVector() * -1.5f);*/
-
-	/*FVector HandF = MainHand->GetActorForwardVector();
-	HandF.Normalize();
-	FQuat HandQuat = HandF.ToOrientationQuat();
-	FQuat Diff = HandQuat.Inverse() * MQuat;
-	FQuat NewQuat = GetActorQuat();
-	NewQuat = NewQuat * Diff;
-	SetActorRotation(NewQuat);*/
+	if (OffHand)
+	{
+		OffHand->SetActorLocation(GetOffHandGrip()->GetComponentLocation());
+		OffHand->SetActorRotation(GetOffHandGrip()->GetComponentRotation());
+	}
 
 }
 
-UPrimitiveComponent* AVRItem::GetGripConstraint_Implementation()
+UPrimitiveComponent* AVRItem::GetMainHandGrip_Implementation()
 {
 	return NULL;
 }
 
-UPrimitiveComponent* AVRItem::GetOffHandGripConstraint_Implementation()
+UPrimitiveComponent* AVRItem::GetOffHandGrip_Implementation()
 {
 	return NULL;
-}
-
-void AVRItem::OnItemHit(class UPrimitiveComponent* HitComp, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
-{
-	bHitSomething = true;
-	LastHitResult = Hit;
 }
 
 void AVRItem::PhysicsTick_Implementation(float SubsetDeltaTime)
