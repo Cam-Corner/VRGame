@@ -19,6 +19,8 @@ ATestingClass::ATestingClass()
 
 	Moving = CreateAbstractDefaultSubobject<UStaticMeshComponent>(TEXT("Moving"));
 	Moving->SetupAttachment(GetRootComponent());
+
+	OnCalculateCustomPhysics.BindUObject(this, &ATestingClass::CustomPhysics);
 }
 
 // Called when the game starts or when spawned
@@ -33,50 +35,30 @@ void ATestingClass::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	
-	/*FVector CurrentRot = Moving->GetComponentQuat().Euler();
-	FVector DesiredRot = Goto->GetComponentQuat().Euler();
+	if (Moving->GetBodyInstance())
+	{
+		Moving->GetBodyInstance()->AddCustomPhysics(OnCalculateCustomPhysics);
+	}
+}
 
-	FVector XRot = XRotPID.Update(DeltaTime, CurrentRot.X, DesiredRot.X, -FVector::ForwardVector);
-	FVector YRot = YRotPID.Update(DeltaTime, CurrentRot.Y, DesiredRot.Y, -FVector::RightVector);
-	FVector ZRot = ZRotPID.Update(DeltaTime, CurrentRot.Z, DesiredRot.Z, FVector::UpVector);*/
+void ATestingClass::PhysicsTick(float SubstepDeltaTime, FBodyInstance* BodyInstance)
+{
+	FVector F = LocPD.GetForce(SubstepDeltaTime, BodyInstance->GetUnrealWorldTransform().GetLocation(), 
+		Goto->GetComponentLocation());
 
-	//Moving->AddTorque(XRot + YRot + ZRot);
+	BodyInstance->AddForce(BodyInstance->GetBodyMass() * F, false);
 
-	//FQuat CurrentRot = Moving->GetComponentQuat();
-	//FQuat DesiredRot = Goto->GetComponentQuat();
-	/*FQuat Diff = DesiredRot * CurrentRot.Inverse();
-	FQuat NewQuat = Diff * CurrentRot;*/
+	FQuat CQuat = Moving->GetComponentQuat();
+	FQuat DQuat = Goto->GetComponentQuat();
+	FVector Vel = BodyInstance->GetUnrealWorldAngularVelocityInRadians();
+	FVector IT = BodyInstance->GetBodyInertiaTensor();
 
-	//Moving->SetWorldRotation(NewQuat);
-	//FVector T = QuatPID.Update(DeltaTime, CurrentRot, DesiredRot);
-	//Moving->AddTorque(T);
+	FVector T = RotPD.GetTorque(SubstepDeltaTime, CQuat, DQuat, Vel, IT);
+	BodyInstance->AddTorqueInRadians(T, false);// / SubstepDeltaTime);
+}
 
-
-	/*FVector T = RotSpring.GetRequiredTorque(Moving->GetForwardVector(), Goto->GetForwardVector(),
-		Moving->GetPhysicsAngularVelocity(), Goto->GetPhysicsAngularVelocity());
-	Moving->AddTorque(T);*/
-
-	/*FQuat CurrentRot = Moving->GetCompoen
-	FQuat DesiredRot = Goto->GetRelativeRotation().Quaternion();
-	FQuat Diff = CurrentRot * DesiredRot.Inverse();
-	FVector ToEuler = Diff.Euler();
-	FVector T = FVector(FMath::FindDeltaAngleDegrees(0, ToEuler.X),
-		FMath::FindDeltaAngleDegrees(0, ToEuler.Y), FMath::FindDeltaAngleDegrees(0, ToEuler.Z));
-	
-	Moving->SetPhysicsAngularVelocity(T);*/
-
-	FVector Current = Moving->GetForwardVector();
-	FVector Desired = Goto->GetForwardVector();
-	FVector T = XRotPID.Update(DeltaTime, Current, Desired);
-
-	Current = Moving->GetRightVector();
-	Desired = Goto->GetRightVector();
-	T += YRotPID.Update(DeltaTime, Current, Desired);
-
-	Current = Moving->GetUpVector();
-	Desired = Goto->GetUpVector();
-	T += ZRotPID.Update(DeltaTime, Current, Desired);
-
-	Moving->SetPhysicsAngularVelocityInDegrees(T);
+void ATestingClass::CustomPhysics(float DeltaTime, FBodyInstance* BodyInstance)
+{
+	PhysicsTick(DeltaTime, BodyInstance);
 }
 

@@ -136,7 +136,7 @@ void AVRTrackingHands::Tick(float DeltaTime)
 	{
 		if (PhysicsHand)
 		{
-			PhysicsHand->SetActorLocation(GetActorLocation());
+			PhysicsHand->SetActorLocation(GetActorLocation(), false, NULL, ETeleportType::ResetPhysics);
 		}
 		
 		bCheckTracking = false;

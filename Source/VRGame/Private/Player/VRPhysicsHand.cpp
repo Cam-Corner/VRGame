@@ -43,6 +43,7 @@ AVRPhysicsHand::AVRPhysicsHand()
 	HandGrabSphere->OnComponentEndOverlap.AddDynamic(this, &AVRPhysicsHand::HandGrabSphereOverlapEnd);
 
 	PhysicsConst = CreateDefaultSubobject<UPhysicsConstraintComponent>("PhysicsConst");
+	PhysicsConst->SetupAttachment(HandSK);
 	//PhysicsConst->SetDisableCollision(true);
 	PhysicsConst->ConstraintActor1 = this;
 	PhysicsConst->SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Locked, 0);
@@ -56,6 +57,7 @@ AVRPhysicsHand::AVRPhysicsHand()
 		HandSK->SetSkeletalMesh(HandSKMesh.Object);
 	}
 
+	OnCalcCustomPhysics.BindUObject(this, &AVRPhysicsHand::CustomPhysics);
 }
 
 void AVRPhysicsHand::SetIsLeftHand()
@@ -103,26 +105,12 @@ void AVRPhysicsHand::GripPressed(float Value)
 					ItemInHand = OverlappedItems[0];
 
 					if (ItemInHand)
-					{
-						//DisableCollision();
-						//ItemInHand->SetActorLocation(HandSK->GetComponentLocation(), false, NULL, ETeleportType::ResetPhysics);
-						//ItemInHand->SetActorRotation(HandSK->GetComponentRotation(), ETeleportType::ResetPhysics);
-						//HandSK->SetSimulatePhysics(false);
-				
-						if (ItemInHand->GetGripConstraint())
+					{				
+						if (ItemInHand->GetMainHandGrip())
 						{
-							FVector NewLoc = ItemInHand->GetGripConstraint()->GetComponentLocation();
-							FQuat NewRot = ItemInHand->GetGripConstraint()->GetComponentQuat();
-							SetActorLocationAndRotation(NewLoc, NewRot, false, NULL, ETeleportType::ResetPhysics);
-							PhysicsConst->SetConstrainedComponents(HandSK, "", ItemInHand->GetPhysicsMesh(), "");
-							//PhysicsConst->SetConstraintReferencePosition(EConstraintFrame:::Frame1,
-							//	ItemInHand->GetGripConstraint()->GetRelativeLocation());
-							//float Diff = ItemInHand->GetPhysicsMesh()->GetMass() / HandSK->GetMass();
-
-							/*if (Diff > 1)
-							{
-								RotPD.ForceMultiplier = OldPIDForce * Diff * 5;
-							}*/
+							DisableCollision();
+							SetActorLocation(ItemInHand->GetMainHandGrip()->GetComponentLocation());
+							SetActorRotation(ItemInHand->GetMainHandGrip()->GetComponentRotation());
 							bGrabbedItem = true;
 						}
 					}
@@ -138,15 +126,10 @@ void AVRPhysicsHand::GripPressed(float Value)
 			ItemComponentInHand.PartGrabbedItem->OffHandGrabbed(this, ItemComponentInHand.ItemPartGrabbed);
 			DisableCollision();
 
-			if (ItemComponentInHand.PartGrabbedItem->GetOffHandGripConstraint())
+			if (ItemComponentInHand.PartGrabbedItem->GetOffHandGrip())
 			{
-				FVector NewLoc = ItemComponentInHand.PartGrabbedItem->GetOffHandGripConstraint()->GetComponentLocation();
-				FQuat NewRot = ItemComponentInHand.PartGrabbedItem->GetOffHandGripConstraint()->GetComponentQuat();
-				SetActorLocationAndRotation(NewLoc, NewRot, false, NULL, ETeleportType::None);
-				PhysicsConst->SetConstrainedComponents(HandSK, "", ItemComponentInHand.PartGrabbedItem->GetPhysicsMesh(), "");
-				//PhysicsConst->SetConstraintReferencePosition(EConstraintFrame:::Frame1,
-				//	ItemInHand->GetGripConstraint()->GetRelativeLocation());
-				//float Diff = ItemInHand->GetPhysicsMesh()->GetMass() / HandSK->GetMass();		
+				SetActorLocation(ItemComponentInHand.PartGrabbedItem->GetMainHandGrip()->GetComponentLocation());
+				SetActorRotation(ItemComponentInHand.PartGrabbedItem->GetMainHandGrip()->GetComponentRotation());
 			}
 		}
 	}
@@ -186,6 +169,9 @@ void AVRPhysicsHand::GripPressed(float Value)
 			}
 
 			PhysicsConst->BreakConstraint();
+
+			/*LocPID.SetPIDValue(EmptyLocPIDSettings);
+			RotPD.SetPIDValue(EmptyRotPIDSettings);*/
 		}
 
 		if (Value < 0.5f)
@@ -254,9 +240,7 @@ void AVRPhysicsHand::BeginPlay()
 {
 	Super::BeginPlay();
 	HandSK->SetWorldScale3D(FVector(1, 1, 1));
-	//HandSK->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 	HandSK->SetSimulatePhysics(false);
-	OldPIDForce = RotPD.ForceMultiplier;
 }
 
 void AVRPhysicsHand::HandGrabSphereOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& HitResult)
@@ -333,12 +317,14 @@ void AVRPhysicsHand::HandGrabSphereOverlapEnd(UPrimitiveComponent* OverlappedCom
 
 void AVRPhysicsHand::EnableCollision()
 {
-
+	HandSK->SetSimulatePhysics(true);
+	HandSK->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 }
 
 void AVRPhysicsHand::DisableCollision()
 {
-
+	HandSK->SetSimulatePhysics(false);
+	HandSK->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AVRPhysicsHand::PhysicsMoveCollisionToHand(float DeltaTime)
@@ -346,28 +332,19 @@ void AVRPhysicsHand::PhysicsMoveCollisionToHand(float DeltaTime)
 	if (!TrackingHands)
 		return;
 
-	//Location PID
-	{
-		FVector CLoc = HandSK->GetComponentLocation();
-		FVector DLoc = TrackingHands->GetHandSkeletalMesh()->GetComponentLocation();
-		FVector F = LocPID.Update(DeltaTime, CLoc, DLoc);
+	FBodyInstance* BI = HandSK->GetBodyInstance();
 
-		HandSK->AddForce(F);
-	}
+	FVector F = LocPD.GetForce(DeltaTime, HandSK->GetComponentLocation(),
+		TrackingHands->GetHandSkeletalMesh()->GetComponentLocation());
+	BI->AddForce(F * BI->GetBodyMass(), false);
 
-	//Rotation PD
-	{
-		FQuat CQuat = HandSK->GetComponentQuat();
-		FQuat DQuat = TrackingHands->GetHandSkeletalMesh()->GetComponentQuat();
-		FVector AVel = HandSK->GetPhysicsAngularVelocity();
-		FVector InertiaTensor = HandSK->GetInertiaTensor();
+	FQuat CQuat = HandSK->GetComponentQuat();
+	FQuat DQuat = TrackingHands->GetHandSkeletalMesh()->GetComponentQuat();
+	FVector Vel = BI->GetUnrealWorldAngularVelocityInRadians();
+	FVector IT = BI->GetBodyInertiaTensor();
 
-		FVector T = RotPD.Update(DeltaTime, CQuat, DQuat, AVel, InertiaTensor);
-		HandSK->SetPhysicsMaxAngularVelocity(1500);
-
-		HandSK->AddTorqueInRadians(T);
-	
-	}
+	FVector T = RotPD.GetTorque(DeltaTime, CQuat, DQuat, Vel, IT);
+	BI->AddTorqueInRadians(T, false);
 }
 
 void AVRPhysicsHand::MovePhysicsItemToHand(float DeltaTime)
@@ -392,14 +369,16 @@ void AVRPhysicsHand::Tick(float DeltaTime)
 		bDoOnceOnTick = true;
 	}
 
+	if (HandSK->GetBodyInstance() && HandSK->IsSimulatingPhysics())
+	{
+		HandSK->GetBodyInstance()->AddCustomPhysics(OnCalcCustomPhysics);
+	}
+	 
+}
+
+void AVRPhysicsHand::CustomPhysics(float DeltaTime, FBodyInstance* BodyInstance)
+{
 	PhysicsMoveCollisionToHand(DeltaTime);
-
-	/*if (ItemInHand)
-		MovePhysicsItemToHand(DeltaTime);
-	else
-		PhysicsMoveCollisionToHand(DeltaTime);*/
-
-	//NonPhysicsHandLocation();
 }
 
 UMotionControllerComponent* AVRPhysicsHand::GetMotionController()
@@ -408,6 +387,14 @@ UMotionControllerComponent* AVRPhysicsHand::GetMotionController()
 		return TrackingHands->GetMotionController();
 
 	return NULL;
+}
+
+const FTransform AVRPhysicsHand::GetTrackingHandTransform()
+{
+	if (TrackingHands)
+		return TrackingHands->GetMotionController()->GetComponentTransform(); 
+
+	return FTransform();
 }
 
 void AVRPhysicsHand::Server_SendLocAndRot_Implementation(FVector Loc, FRotator Rot)

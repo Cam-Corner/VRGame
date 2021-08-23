@@ -1050,18 +1050,21 @@ void UVRCharacterComponent::MovePlayerCapsule(FVector Dir, float OffsetAmount,
 			}
 			else
 			{
-				//move up a slope		
-				FVector NewDir = GetSlopeMovementDirection(Dir, FinalMove.ImpactNormal, FinalMove.Actor->GetActorRightVector());
-				FVector NewOffset = (NewDir * OffsetAmount) * (1 - FinalMove.Time);
+				//move up a slope
+				if (FinalMove.Actor != NULL)
+				{
+					FVector NewDir = GetSlopeMovementDirection(Dir, FinalMove.ImpactNormal, FinalMove.Actor->GetActorRightVector());
+					FVector NewOffset = (NewDir * OffsetAmount) * (1 - FinalMove.Time);
 
-				/*DrawDebugLine(GetWorld(), VRCharacterCapsule->GetComponentLocation(),
-					VRCharacterCapsule->GetComponentLocation() + NewOffset, FColor::Red,
-					false, 0.5f);*/
+					/*DrawDebugLine(GetWorld(), VRCharacterCapsule->GetComponentLocation(),
+						VRCharacterCapsule->GetComponentLocation() + NewOffset, FColor::Red,
+						false, 0.5f);*/
 
-				CapToMove->AddWorldOffset(NewOffset, true);
-				
-				if(bZRecenter)
-					ZRecenter();			
+					CapToMove->AddWorldOffset(NewOffset, true);
+
+					if (bZRecenter)
+						ZRecenter();
+				}
 			}
 		}
 	
