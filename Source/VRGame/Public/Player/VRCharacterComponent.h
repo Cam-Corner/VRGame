@@ -118,7 +118,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SaveSettings();
 
-	/* load the usres current settings */
+	/* load the users current settings */
 	void LoadSettings();
 
 	/* save the users current settings */
