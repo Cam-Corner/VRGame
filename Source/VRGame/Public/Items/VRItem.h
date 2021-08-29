@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Player/VRPhysicsHand.h"
 #include "Utility/PIDControllers.h"
+#include "Utility/PhysicsSprings.h"
 #include "VRItem.generated.h"
 
 class AVRPhysicsHand;
@@ -121,13 +122,25 @@ protected:
 	FCalculateCustomPhysics OnCalcCustomPhysics;
 	void CustomPhysics(float DeltaTime, FBodyInstance* BodyInstance);
 
-	/**Location PID Controller Settings For This Gun*/
+	/** If true use PD Controller, If false use spring */
 	UPROPERTY(EditAnywhere, Category = "Physics Tuning")
+		bool bUsePDController = true;
+
+	/**Location PID Controller Settings For This Gun*/
+	UPROPERTY(EditAnywhere, Category = "Physics Tuning", meta = (EditCondition = "bUsePDController"))
 		FPDController3D LocPD;
 
 	/**Rotation PD Controller Settings For This Gun*/
-	UPROPERTY(EditAnywhere, Category = "Physics Tuning")
+	UPROPERTY(EditAnywhere, Category = "Physics Tuning", meta = (EditCondition = "bUsePDController"))
 		FQuatPDController RotPD;
+
+	/**Location PID Controller Settings For This Gun*/
+	UPROPERTY(EditAnywhere, Category = "Physics Tuning", meta = (EditCondition = "!bUsePDController"))
+		FLinearSpring LocSpring;
+
+	/**Rotation PD Controller Settings For This Gun*/
+	UPROPERTY(EditAnywhere, Category = "Physics Tuning", meta = (EditCondition = "!bUsePDController"))
+		FTorsionalSpringRot RotSpring;
 
 /*======
 Server stuff

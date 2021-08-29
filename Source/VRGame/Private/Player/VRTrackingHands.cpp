@@ -37,7 +37,7 @@ AVRTrackingHands::AVRTrackingHands()
 	}
 
 	ConstructorHelpers::FObjectFinder<UMaterialInstance> HandMat
-			(TEXT("/Game/MyStuff/Materials/m_TrackingHands.m_TrackingHands"));
+			(TEXT("/Game/Content/Materials/m_TrackingHands.m_TrackingHands"));
 	if (HandMat.Succeeded())
 	{
 		HandSK->SetMaterial(0, HandMat.Object);

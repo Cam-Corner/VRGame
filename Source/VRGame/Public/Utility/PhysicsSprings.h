@@ -13,9 +13,6 @@ struct FLinearSpring
 	float SpringStiffnesss = 1.0f;
 
 	UPROPERTY(EditAnywhere)
-	float ForceMultiplier = 1.0f;
-
-	UPROPERTY(EditAnywhere)
 	float CriticalDamping = 0.5f;
 
 	FVector Update(FVector CurrentLoc, FVector DesiredLoc, FVector CurrentVel, FVector DesiredVel)
@@ -25,7 +22,7 @@ struct FLinearSpring
 
 		FVector F = -SpringStiffnesss * Diff - CriticalDamping * VelDiff;
 
-		return F * ForceMultiplier;
+		return F;
 	}
 };
 
@@ -38,9 +35,6 @@ struct FTorsionalSpring
 	float SpringStiffnesss = 1.0f;
 
 	UPROPERTY(EditAnywhere)
-	float ForceMultiplier = 1.0f;
-
-	UPROPERTY(EditAnywhere)
 	float CriticalDamping = 0.5f;
 
 	FVector GetRequiredTorque(FVector CurrentRotation, FVector DesiredRotation, FVector CurrentVel, FVector DesiredVel)
@@ -51,7 +45,7 @@ struct FTorsionalSpring
 		FVector VelDiff = CurrentVel - DesiredVel;
 
 		FVector T = -SpringStiffnesss * Distance * AngleOfRot - CriticalDamping * VelDiff;
-		return T * ForceMultiplier;
+		return T;
 	}
 };
 
@@ -95,6 +89,29 @@ private:
 
 		FVector T = -SpringStiffnesss * Distance * AngleOfRot - CriticalDamping * VelDiff;
 		return T * ForceMultiplier;
+	}
+};
+
+USTRUCT(BlueprintType)
+struct FQuatSpring
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	float SpringStiffnesss = 1.0f;
+
+	UPROPERTY(EditAnywhere)
+		float CriticalDamping = 0.5f;
+
+	FVector GetRequiredTorque(FVector CurrentRotation, FVector DesiredRotation, FVector CurrentVel, FVector DesiredVel)
+	{
+		float Distance = ExtraMaths::GetAngleOfTwoVectors(DesiredRotation, CurrentRotation);
+		FVector AngleOfRot = FVector::CrossProduct(DesiredRotation, CurrentRotation);
+		FVector AngleOfRotVel = FVector::CrossProduct(CurrentVel, DesiredVel);
+		FVector VelDiff = CurrentVel - DesiredVel;
+
+		FVector T = -SpringStiffnesss * Distance * AngleOfRot - CriticalDamping * VelDiff;
+		return T;
 	}
 };
 

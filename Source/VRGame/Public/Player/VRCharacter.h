@@ -8,6 +8,7 @@
 #include "VRCharacter.generated.h"
 
 class UVRCharacterComponent;
+class UVRCharacterComponentNew;
 class AVRTrackingHands;
 class AVRPhysicsHand;
 
@@ -33,7 +34,7 @@ public:
 
 	/* Get the VRCharacter Component */
 	UFUNCTION(BlueprintCallable)
-	UVRCharacterComponent* GetVRCharacterComponent()
+	UVRCharacterComponentNew* GetVRCharacterComponent()
 	{
 		return VRCharacterComponent;
 	}
@@ -54,7 +55,7 @@ private:
 	FVector2D MovementThumbstick{ 0, 0 };
 
 	UPROPERTY(EditAnywhere, Category = "VRCharacterComponent")
-	UVRCharacterComponent* VRCharacterComponent;
+		UVRCharacterComponentNew* VRCharacterComponent;
 private:
 	/*================
 	private Functions

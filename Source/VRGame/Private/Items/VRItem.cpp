@@ -111,8 +111,19 @@ void AVRItem::MoveItemToHand(float DeltaTime)
 	FVector CurrentLoc = BI->GetUnrealWorldTransform().GetLocation();
 	CurrentLoc += BI->GetUnrealWorldTransform().GetRotation().GetForwardVector() * -11;
 
-	FVector F = LocPD.GetForce(DeltaTime, CurrentLoc,
-		MainHand->GetTrackingHandTransform().GetLocation());
+	FVector F = FVector::ZeroVector;
+
+	if (bUsePDController)
+	{
+		F = LocPD.GetForce(DeltaTime, CurrentLoc,
+			MainHand->GetTrackingHandTransform().GetLocation());
+	}
+	else
+	{
+		F = LocSpring.Update(CurrentLoc, MainHand->GetTrackingHandTransform().GetLocation(),
+			BI->GetUnrealWorldVelocity(), FVector::ZeroVector);
+	}
+
 	BI->AddForce(F * BI->GetBodyMass(), false);
 
 	FQuat CQuat = BI->GetUnrealWorldTransform().GetRotation();
@@ -136,8 +147,19 @@ void AVRItem::MoveItemToHand(float DeltaTime)
 
 	}
 
-	FVector T = RotPD.GetTorque(DeltaTime, CQuat, DQuat, Vel, IT);
-	BI->AddTorqueInRadians(T, false);
+
+	FVector T = FVector::ZeroVector;
+		
+	if (bUsePDController)
+	{
+		T = RotPD.GetTorque(DeltaTime, CQuat, DQuat, Vel, IT);
+	}
+	else
+	{
+		T = RotSpring.GetRequiredTorque(CQuat, DQuat, Vel, FVector::ZeroVector);
+	}
+		
+	BI->AddTorqueInRadians(T * BI->GetBodyMass(), false);
 
 	if (MainHand)
 	{

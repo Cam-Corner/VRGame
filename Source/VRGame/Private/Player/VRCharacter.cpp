@@ -14,6 +14,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Player/VRTrackingHands.h"
 #include "Player/VRCharacterComponent.h"
+#include "Player/VRCharacterComponentNew.h"
 #include "Networking/NetworkingHelpers.h"
 
 // Sets default values
@@ -91,7 +92,7 @@ AVRCharacter::AVRCharacter()
 	BodyCollision->SetVisibility(false);
 	BodyCollision->SetCollisionProfileName("BlockAll");
 
-	VRCharacterComponent = CreateDefaultSubobject<UVRCharacterComponent>(TEXT("VR Character Component"));
+	VRCharacterComponent = CreateDefaultSubobject<UVRCharacterComponentNew>(TEXT("VR Character Component"));
 	VRCharacterComponent->SetIsReplicated(true);
 	//AddOwnedComponent(VRCharacterComponent);
 
@@ -115,10 +116,11 @@ void AVRCharacter::BeginPlay()
 
 	if (VRCharacterComponent)
 	{
-		VRCharacterComponent->SetComponentOwner(this);
-		VRCharacterComponent->SetVRCharacterCamera(VRCamera, VRCameraRoot);
-		VRCharacterComponent->SetVRCharacterCapsule(BodyCollision);
-		VRCharacterComponent->ResetToStartLocation();
+		VRCharacterComponent->SetOwningPawn(this);
+		VRCharacterComponent->SetCameraComponent(VRCamera);
+		VRCharacterComponent->SetCapsuleComponent(BodyCollision);
+		VRCharacterComponent->SetCameraOriginComponent(VRCameraRoot);
+		//VRCharacterComponent->ResetToStartLocation();
 	}
 
 	if (bNonVRTesting)
@@ -196,11 +198,11 @@ void AVRCharacter::Tick(float DeltaTime)
 
 	if (VRCharacterComponent && CharacterStaticMesh)
 	{
-		VRCharacterComponent->SetXYMovementDirection(MovementThumbstick);
-		ServerLocation->SetWorldLocation(VRCharacterComponent->GetServerSycnedLocation());
+		VRCharacterComponent->AddMovementVector(MovementThumbstick);
+		//ServerLocation->SetWorldLocation(VRCharacterComponent->GetServerSycnedLocation());
 		
 		FVector NewScale = CharacterStaticMesh->GetComponentScale();
-		NewScale.Z = VRCharacterComponent->GetHalfHeight() * 0.0032;
+		NewScale.Z = BodyCollision->GetScaledCapsuleHalfHeight() * 0.0032;
 		CharacterStaticMesh->SetWorldScale3D(NewScale);
 	}
 
@@ -339,7 +341,7 @@ void AVRCharacter::XRotation(float Value)
 {
 	if (VRCharacterComponent)
 	{
-		VRCharacterComponent->SetXRotationValue(Value);
+		VRCharacterComponent->AddYawInput(Value);
 	}
 }
 

@@ -6,7 +6,14 @@
 #include "Components/ActorComponent.h"
 #include "VRCharacterComponentNew.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogAVRCharacterComponentNew, Log, All);
+
+
 class UCapsuleComponent;
+class UCameraComponent;
+class USceneComponent;
+class APawn;
+class UStaticMeshComponent;
 
 UENUM(BlueprintType)
 enum EMovementType
@@ -59,22 +66,36 @@ public:
 *  Non networking Functions
 *  ================ */
 public:
-	/** Add a direction to the input, the vector passed should be normalized */
-	void AddMovementVector(const FVector Dir) { MovementVectorToConsume += Dir; }
+	/** pass in the input values from the controller to be consumed when moving */
+	void AddMovementVector(const FVector2D Dir) { MovementVectorToConsume += Dir; }
 
 	/** Add Yaw Input, if 1, then we use the full sensitivty value, if 0.5f then we use half etc */
-	void AddPitchInput(const float Amount) { YawInputToConsume += Amount; }
+	void AddYawInput(const float Amount) { YawInputToConsume += Amount; }
 
+	/** set the camera component that this compenent should use */
+	void SetCameraComponent(UCameraComponent* InCamera);
+
+	/** set the camera origin component that this compenent should use */
+	void SetCameraOriginComponent(USceneComponent* InCameraOrigin);
+
+	/** set the Character Capsule (The players collision) that this compenent should use */
+	void SetCapsuleComponent(UCapsuleComponent* InCapsule);
+
+	/** set the server debug mesh Capsule that this compenent should use */
+	void SetServerDebugMeshComponent(UStaticMeshComponent* InMesh);
+
+	/** set the pawn that owns this component */
+	void SetOwningPawn(APawn* InPawn);
 protected:
 	/** Moves a specified capsule in the direction givent by the amount given */
 	void MoveCapsule(UCapsuleComponent* CapToMove, const FVector Dir,
-		const float Amount, const bool bXYRecenter, bool bZRecenter);
+		const float MoveAmount, const bool bXYRecenter, bool bZRecenter);
 
 	/** Consume the input vector */
-	FVector ConsumeMovementVector();
+	FVector2D ConsumeMovementVector();
 
 	/** Consume the yaw input */
-	FVector ConsumeYawInput();
+	float ConsumeYawInput();
 
 	/** Recented the HMD on the XY Axis */
 	void XYRecenter();
@@ -91,14 +112,40 @@ protected:
 	/** Handles authorative functions/code */
 	void AuthorativeHandler(float DeltaTime);
 
-	/** Called to smooth turn the player */
-	void SmoothTurning(float DeltaTime);
+	/** handles the rotation and uses the players default settings */
+	void HandleRotation(float DeltaTime);
 
-	/** Called to snap turn the player */
-	void SnapTurning(float DeltaTime);
+	/** Turn the player */
+	void YawRotation(float Amount);
 
-	/** Moves the collision towards the HMD */
-	void MoveCollisionToHMD();
+	/** Function used to do a sphere trace using components default settings */
+	void SphereCast(FHitResult& Result, FVector StartLoc, FVector EndLoc, float SphereRadius,
+		bool bShowDebug = false, FColor Colour = FColor::Black, float DebugTimer = 0.1f);
+
+	/** Function used to do a sphere trace using components default settings */
+	void ShapeCast(FHitResult& Result, FVector StartLoc, FVector EndLoc, FCollisionShape Shape,
+		bool bShowDebug = false, FColor Colour = FColor::Black, float DebugTimer = 0.1f);
+
+	/** handles the player when they are in grounded mode */
+	void HandleGroundedMode(float DeltaTime);
+
+	/** handles the player when they are in grounded mode */
+	void HandleFallingMode(float DeltaTime);
+
+	/** Moves the collision to allign with the hmd while colliding with objects on the way */
+	void MoveCollisionToHmd();
+
+	/** Sweeps from the moving collision (ignores Z component) and see ifs the hmd is in a valid position */
+	void CameraCollisionCheck();
+
+	/** Checks to make sure HMD doesnt get too far away from the collision (aka walking through objects and things) */
+	void HmdCollisionDistanceCheck();
+
+	/** scale the collision with the height of the player */
+	void ScaleCapsuleHeight();
+
+	/** checks if the floor is walkable */
+	bool IsWalkableSurface(const FHitResult& Hit);
 
 /* ================
 *  Networking Functions
@@ -109,15 +156,39 @@ private:
 		void Server_SendMove(FPlayerMove& Move);*/
 
 /* ================
+*  Components
+*  ================ */
+private:
+	/** Will use this component to move and check for collision */
+	UCapsuleComponent* Capsule;
+
+	/** The camera that is current being used for the player */
+	UCameraComponent* Camera;
+
+	/** The origin of the camera */
+	USceneComponent* CameraOrigin;
+
+	/** server debug mesh, used to visiualy see where the last sent location was for the player */
+	UStaticMeshComponent* ServerDebugMesh;
+
+	/** The pawn that owns this controller */
+	APawn* OwningPawn;
+/* ================
 *  Non visible Variables
 *  ================ */
 private:
 	UPROPERTY(Replicated)
 		FVector SyncedHMDLocation = FVector::ZeroVector;
 
-	FVector MovementVectorToConsume = FVector::ZeroVector;
+	FVector2D MovementVectorToConsume = FVector2D::ZeroVector;
+	
 	float YawInputToConsume = 0.0f;
 
+	bool bCanSnapTurn = true;
+
+	TEnumAsByte<EMovementType> CurrentMovementType;
+
+	TEnumAsByte<EGroundedType> CurrentGroundedType;
 /* ==========================================
 *  Below are the characters visible variables
 *  ========================================== */
@@ -152,7 +223,15 @@ protected:
 	/** If true we toggle the jog/sprint, if false you hold to jog/sprint*/
 	UPROPERTY(EditAnywhere, Category = "Character Component: Grounded Settings",
 		meta = (ClampMin = "0", ClampMax = "90", UIMin = "0", UIMax = "90"))
-		float MaxWalkableFloorAnge = 45.f;
+		float MaxWalkableFloorAngle = 45.f;
+
+	/** If true we toggle the jog/sprint, if false you hold to jog/sprint*/
+	UPROPERTY(EditAnywhere, Category = "Character Component: Grounded Settings")
+		float MaxStepUpHeight = 45.f;
+
+	/** If true we toggle the jog/sprint, if false you hold to jog/sprint*/
+	UPROPERTY(EditAnywhere, Category = "Character Component: Grounded Settings", AdvancedDisplay)
+		bool bShowDebugMovement = false;
 
 	/* =================
 	*  Falling Settings
@@ -173,6 +252,7 @@ protected:
 	/* =================
 	*  Swimming Settings
 	*  ================= */
+
 
 	/* =================
 	*  Camera Settings

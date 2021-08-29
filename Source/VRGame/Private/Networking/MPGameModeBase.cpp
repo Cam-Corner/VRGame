@@ -9,7 +9,7 @@ DEFINE_LOG_CATEGORY(LogAMPGameModeBase);
 AMPGameModeBase::AMPGameModeBase()
 {
 	static ConstructorHelpers::FClassFinder<APawn> PlayerPawnOB(
-		 TEXT("/Game/MyStuff/Blueprints/Player/bp_VRCharacter"));
+		 TEXT("/Game/Content/Blueprints/Player/bp_VRCharacter"));
 	if (PlayerPawnOB.Succeeded())
 		DefaultPawnClass = PlayerPawnOB.Class;
 
