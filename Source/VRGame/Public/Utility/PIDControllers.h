@@ -113,8 +113,8 @@ public:
 	*/
 	FVector GetTorque(float DeltaTime, FQuat CQuat, FQuat DQuat, FVector AVel, FVector InertiaTensor)
 	{
-		float P = (6.f * Frequency) * (6.f * Frequency) * 0.25f;
-		float D = 4.5f * Frequency * Dampening;
+		float P = Frequency;//(6.f * Frequency) * (6.f * Frequency) * 0.25f;
+		float D = Dampening;//4.5f * Frequency * Dampening;
 
 		FVector Axis = FVector::ZeroVector;
 		float Angle = 0;
@@ -132,11 +132,11 @@ public:
 		Axis.Normalize();
 		FVector::DegreesToRadians(Axis);
 		FVector Value = P * Axis * Angle - D * AVel;
-		FQuat RotInertia2World = InertiaTensor.ToOrientationQuat() * CQuat;
+		/*FQuat RotInertia2World = InertiaTensor.ToOrientationQuat() * CQuat;
 		Value = RotInertia2World.Inverse() * Value;
 		Value *= InertiaTensor;
-		Value = RotInertia2World * Value;
-		return Value;
+		Value = RotInertia2World * Value;*/
+		return Value * ForceMultiplier;
 	}
 
 protected:
@@ -151,4 +151,8 @@ protected:
 	*/
 	UPROPERTY(EditAnywhere, Category = "Tuning ")
 		float Dampening = 1.0f;
+
+	/**How fast it takes to reach the target */
+	UPROPERTY(EditAnywhere, Category = "Tuning ")
+		float ForceMultiplier = 1.0f;
 };

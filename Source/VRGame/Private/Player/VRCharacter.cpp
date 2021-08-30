@@ -13,7 +13,6 @@
 #include "VRGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Player/VRTrackingHands.h"
-#include "Player/VRCharacterComponent.h"
 #include "Player/VRCharacterComponentNew.h"
 #include "Networking/NetworkingHelpers.h"
 
@@ -92,9 +91,9 @@ AVRCharacter::AVRCharacter()
 	BodyCollision->SetVisibility(false);
 	BodyCollision->SetCollisionProfileName("BlockAll");
 
-	VRCharacterComponent = CreateDefaultSubobject<UVRCharacterComponentNew>(TEXT("VR Character Component"));
-	VRCharacterComponent->SetIsReplicated(true);
-	//AddOwnedComponent(VRCharacterComponent);
+	VRCharacterComponentNew = CreateDefaultSubobject<UVRCharacterComponentNew>(TEXT("VR Character Component New"));
+	VRCharacterComponentNew->SetIsReplicated(true);
+	//AddOwnedComponent(VRCharacterComponentNew);
 
 	CharacterStaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CharacterStaticMesh"));
 	CharacterStaticMesh->SetupAttachment(BodyCollision);
@@ -109,20 +108,6 @@ void AVRCharacter::BeginPlay()
 	Super::BeginPlay();
 	//BodyCollision->bHiddenInGame = true;
 
-	if (UVRGameInstance* VRGI = Cast<UVRGameInstance>(UGameplayStatics::GetGameInstance(GetWorld())))
-	{
-		VRGI->SpawnAudioManager();
-	}
-
-	if (VRCharacterComponent)
-	{
-		VRCharacterComponent->SetOwningPawn(this);
-		VRCharacterComponent->SetCameraComponent(VRCamera);
-		VRCharacterComponent->SetCapsuleComponent(BodyCollision);
-		VRCharacterComponent->SetCameraOriginComponent(VRCameraRoot);
-		//VRCharacterComponent->ResetToStartLocation();
-	}
-
 	if (bNonVRTesting)
 		VRCamera->AddWorldOffset(FVector(0, 0, 100));
 
@@ -131,11 +116,25 @@ void AVRCharacter::BeginPlay()
 		SpawnHands();
 	}
 
+	if (VRCharacterComponentNew)
+	{
+		VRCharacterComponentNew->SetOwningPawn(this);
+		VRCharacterComponentNew->SetCameraComponent(VRCamera);
+		VRCharacterComponentNew->SetCapsuleComponent(BodyCollision);
+		VRCharacterComponentNew->SetCameraOriginComponent(VRCameraRoot);
+		//VRCharacterComponentNew->ResetToStartLocation();
+	}
+
 	if (IsLocallyControlled())
 	{
 		CharacterStaticMesh->bHiddenInGame = true;
 		CharacterStaticMesh->SetVisibility(false);
 		Server_ClientsActorReady();
+
+		if (UVRGameInstance* VRGI = Cast<UVRGameInstance>(UGameplayStatics::GetGameInstance(GetWorld())))
+		{
+			VRGI->SpawnAudioManager();
+		}
 	}
 }
 
@@ -196,13 +195,13 @@ void AVRCharacter::Tick(float DeltaTime)
 	ApplyMovement();
 	ScaleCollisionWithPlayer();*/
 
-	if (VRCharacterComponent && CharacterStaticMesh)
+	if (VRCharacterComponentNew && CharacterStaticMesh)
 	{
-		VRCharacterComponent->AddMovementVector(MovementThumbstick);
-		//ServerLocation->SetWorldLocation(VRCharacterComponent->GetServerSycnedLocation());
+		VRCharacterComponentNew->AddMovementVector(MovementThumbstick);
+		//ServerLocation->SetWorldLocation(VRCharacterComponentNew->GetServerSycnedLocation());
 		
 		FVector NewScale = CharacterStaticMesh->GetComponentScale();
-		NewScale.Z = BodyCollision->GetScaledCapsuleHalfHeight() * 0.0032;
+		NewScale.Z = (BodyCollision->GetScaledCapsuleHalfHeight() / 310);
 		CharacterStaticMesh->SetWorldScale3D(NewScale);
 	}
 
@@ -339,9 +338,9 @@ void AVRCharacter::PIDController(const float DeltaTime, const float CurrentValue
 
 void AVRCharacter::XRotation(float Value)
 {
-	if (VRCharacterComponent)
+	if (VRCharacterComponentNew)
 	{
-		VRCharacterComponent->AddYawInput(Value);
+		VRCharacterComponentNew->AddYawInput(Value);
 	}
 }
 
@@ -531,4 +530,5 @@ void AVRCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 
 	DOREPLIFETIME(AVRCharacter, LeftHand);
 	DOREPLIFETIME(AVRCharacter, RightHand);
+	
 }

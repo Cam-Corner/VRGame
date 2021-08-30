@@ -10,6 +10,7 @@
 #include "VRItem.generated.h"
 
 class AVRPhysicsHand;
+class UBoxComponent;
 
 UCLASS()
 class VRGAME_API AVRItem : public AActor
@@ -109,6 +110,9 @@ protected:
 	/* The weapons base mesh */
 	UPROPERTY(VisibleAnywhere, Category = "Item Settings")
 		class UStaticMeshComponent* ItemBaseMesh;
+
+	UPROPERTY(VisibleAnywhere, Category = "Item Settings")
+		UBoxComponent* BasePhysicsBox;
 
 	/* If the hand should drop this item on the next frame
 	@ Useful for things such as weapon mags when they get put into the weapon

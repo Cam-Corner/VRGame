@@ -34,16 +34,23 @@ enum EGroundedType
 };
 
 /*USTRUCT()
-struct FPlayerMove
+struct FNetworkedMove
 {
 	GENERATED_BODY()
+
+	U
 
 	UPROPERTY()
 	FVector Dir = FVector::ZeroVector;
 
 };*/
 
-
+struct FLastClientUpdate
+{
+	FVector LastLocation = FVector::ZeroVector;
+	FVector Direction = FVector::ZeroVector;
+	bool bGoToLastLocation = false;
+};
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class VRGAME_API UVRCharacterComponentNew : public UActorComponent
@@ -142,18 +149,23 @@ protected:
 	void HmdCollisionDistanceCheck();
 
 	/** scale the collision with the height of the player */
-	void ScaleCapsuleHeight();
+	void ScaleCapsuleHeight(float CameraZ);
 
 	/** checks if the floor is walkable */
 	bool IsWalkableSurface(const FHitResult& Hit);
 
+	/** When recieving new move, update the data with the new values for the proxys */
+	void UpdateProxyMoveData(FVector CurrentLocation, FVector Dir, float CapHalfHeight);
 /* ================
 *  Networking Functions
 *  ================ */
 private:
 	/** Send move to the server */
-	/*UFUNCTION(Server, Reliable)
-		void Server_SendMove(FPlayerMove& Move);*/
+	UFUNCTION(Server, Reliable)
+		void Server_SendMove(FVector CurrentLocation, FVector Dir, float CapHalfHeight);
+
+	UFUNCTION(NetMulticast, Reliable)
+		void NetMulticast_SendMove(FVector CurrentLocation, FVector Dir, float CapHalfHeight);
 
 /* ================
 *  Components
@@ -168,7 +180,7 @@ private:
 	/** The origin of the camera */
 	USceneComponent* CameraOrigin;
 
-	/** server debug mesh, used to visiualy see where the last sent location was for the player */
+	/** server debug mesh, used to visualy see where the last sent location was for the player */
 	UStaticMeshComponent* ServerDebugMesh;
 
 	/** The pawn that owns this controller */
@@ -189,6 +201,12 @@ private:
 	TEnumAsByte<EMovementType> CurrentMovementType;
 
 	TEnumAsByte<EGroundedType> CurrentGroundedType;
+
+	FLastClientUpdate LastProxyUpdate;
+
+	FVector2D LastInputDir = FVector2D::ZeroVector;
+
+	float SendMoveTimer = 0;
 /* ==========================================
 *  Below are the characters visible variables
 *  ========================================== */

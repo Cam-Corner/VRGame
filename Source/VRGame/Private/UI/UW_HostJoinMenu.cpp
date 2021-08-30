@@ -7,7 +7,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "VRGameInstance.h"
 
-#define LEVEL_GunRange TEXT("/Game/MyStuff/Levels/lvl_GunRangeV1");
+#define LEVEL_GunRange TEXT("/Game/Content/Levels/lvl_GunRangeV1");
+#define LEVEL_ChinaTown TEXT("/Game/Content/Levels/MainGame/ChinaTown/ChinaTown_Cam");
 
 #define GameMode_MP_Default TEXT("?listen?game=Default");
 
@@ -32,7 +33,7 @@ void UUW_HostJoinMenu::JoinServer(FName IP)
 
 void UUW_HostJoinMenu::HostServer()
 {
-	FName Map = LEVEL_GunRange;
+	FName Map = LEVEL_ChinaTown;
 	FString Mode = GameMode_MP_Default;
 	UGameplayStatics::OpenLevel(GetWorld(), Map, true, Mode);
 	//UEngine::Browse()

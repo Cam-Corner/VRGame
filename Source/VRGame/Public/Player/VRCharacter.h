@@ -36,7 +36,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	UVRCharacterComponentNew* GetVRCharacterComponent()
 	{
-		return VRCharacterComponent;
+		return VRCharacterComponentNew;
 	}
 protected:
 	/*================
@@ -54,8 +54,8 @@ private:
 	==================*/
 	FVector2D MovementThumbstick{ 0, 0 };
 
-	UPROPERTY(EditAnywhere, Category = "VRCharacterComponent")
-		UVRCharacterComponentNew* VRCharacterComponent;
+	UPROPERTY(EditAnywhere, Category = "VRCharacterComponentNew")
+		UVRCharacterComponentNew* VRCharacterComponentNew;
 private:
 	/*================
 	private Functions

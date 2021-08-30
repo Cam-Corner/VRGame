@@ -91,6 +91,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HandMesh")
 		USkeletalMeshComponent* HandSK;
 
+	/** physics box component */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HandMesh")
+		UBoxComponent* PhysicsBase;
+
+
 private:
 	
 
@@ -119,8 +124,8 @@ private:
 	UPROPERTY(EditAnywhere, Category = "HandPoses")
 	UAnimationAsset* GripPose;
 
-	UPROPERTY(EditAnywhere, Category = "HandPoses")
-		UPhysicsConstraintComponent* PhysicsConst;
+	//UPROPERTY(EditAnywhere, Category = "HandPoses")
+		//UPhysicsConstraintComponent* PhysicsConst;
 
 	bool bInGripPose = false;
 

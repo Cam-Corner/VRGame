@@ -23,13 +23,20 @@ AVRPhysicsHand::AVRPhysicsHand()
 	//SetReplicates(true);
 	bReplicates = true;
 
+	PhysicsBase = CreateDefaultSubobject<UBoxComponent>("PhysicsBase");
+	PhysicsBase->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	PhysicsBase->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+	PhysicsBase->SetSimulatePhysics(true);
+	PhysicsBase->SetEnableGravity(false);
+	//PhysicsBase->SetMassOverrideInKg(NAME_None, 100);
+	RootComponent = PhysicsBase;
+
 	HandSK = CreateDefaultSubobject<USkeletalMeshComponent>("HandSkeletalMesh");
-	HandSK->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	HandSK->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
-	HandSK->SetSimulatePhysics(true);
+	HandSK->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	HandSK->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	HandSK->SetSimulatePhysics(false);
 	HandSK->SetEnableGravity(false);
-	HandSK->SetMassOverrideInKg(NAME_None, 100);
-	RootComponent = HandSK;
+	HandSK->SetupAttachment(PhysicsBase);
 
 	HandGrabSphere = CreateDefaultSubobject<USphereComponent>("HandGrabSphere");
 	HandGrabSphere->SetupAttachment(HandSK);
@@ -42,13 +49,13 @@ AVRPhysicsHand::AVRPhysicsHand()
 	HandGrabSphere->OnComponentBeginOverlap.AddDynamic(this, &AVRPhysicsHand::HandGrabSphereOverlapBegin);
 	HandGrabSphere->OnComponentEndOverlap.AddDynamic(this, &AVRPhysicsHand::HandGrabSphereOverlapEnd);
 
-	PhysicsConst = CreateDefaultSubobject<UPhysicsConstraintComponent>("PhysicsConst");
-	PhysicsConst->SetupAttachment(HandSK);
+	//PhysicsConst = CreateDefaultSubobject<UPhysicsConstraintComponent>("PhysicsConst");
+	//PhysicsConst->SetupAttachment(PhysicsBase);
 	//PhysicsConst->SetDisableCollision(true);
-	PhysicsConst->ConstraintActor1 = this;
-	PhysicsConst->SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Locked, 0);
-	PhysicsConst->SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Locked, 0);
-	PhysicsConst->SetAngularTwistLimit(EAngularConstraintMotion::ACM_Locked, 0);
+	//PhysicsConst->ConstraintActor1 = this;
+	//PhysicsConst->SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Locked, 0);
+	//PhysicsConst->SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Locked, 0);
+	//PhysicsConst->SetAngularTwistLimit(EAngularConstraintMotion::ACM_Locked, 0);
 
 	ConstructorHelpers::FObjectFinder<USkeletalMesh> HandSKMesh
 	(TEXT("/Game/VirtualReality/Mannequin/Character/Mesh/MannequinHand_Right.MannequinHand_Right"));
@@ -168,7 +175,7 @@ void AVRPhysicsHand::GripPressed(float Value)
 				EnableCollision();
 			}
 
-			PhysicsConst->BreakConstraint();
+			//PhysicsConst->BreakConstraint();
 
 			/*LocPID.SetPIDValue(EmptyLocPIDSettings);
 			RotPD.SetPIDValue(EmptyRotPIDSettings);*/
@@ -317,14 +324,14 @@ void AVRPhysicsHand::HandGrabSphereOverlapEnd(UPrimitiveComponent* OverlappedCom
 
 void AVRPhysicsHand::EnableCollision()
 {
-	HandSK->SetSimulatePhysics(true);
-	HandSK->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	PhysicsBase->SetSimulatePhysics(true);
+	PhysicsBase->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 }
 
 void AVRPhysicsHand::DisableCollision()
 {
-	HandSK->SetSimulatePhysics(false);
-	HandSK->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PhysicsBase->SetSimulatePhysics(false);
+	PhysicsBase->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AVRPhysicsHand::PhysicsMoveCollisionToHand(float DeltaTime)
@@ -332,19 +339,19 @@ void AVRPhysicsHand::PhysicsMoveCollisionToHand(float DeltaTime)
 	if (!TrackingHands)
 		return;
 
-	FBodyInstance* BI = HandSK->GetBodyInstance();
+	FBodyInstance* BI = PhysicsBase->GetBodyInstance();
 
-	FVector F = LocPD.GetForce(DeltaTime, HandSK->GetComponentLocation(),
+	FVector F = LocPD.GetForce(DeltaTime, PhysicsBase->GetComponentLocation(),
 		TrackingHands->GetHandSkeletalMesh()->GetComponentLocation());
 	BI->AddForce(F * BI->GetBodyMass(), false);
 
-	FQuat CQuat = HandSK->GetComponentQuat();
+	FQuat CQuat = PhysicsBase->GetComponentQuat();
 	FQuat DQuat = TrackingHands->GetHandSkeletalMesh()->GetComponentQuat();
 	FVector Vel = BI->GetUnrealWorldAngularVelocityInRadians();
 	FVector IT = BI->GetBodyInertiaTensor();
 
 	FVector T = RotPD.GetTorque(DeltaTime, CQuat, DQuat, Vel, IT);
-	BI->AddTorqueInRadians(T, false);
+	BI->AddTorqueInRadians(T * BI->GetBodyMass(), false);
 }
 
 void AVRPhysicsHand::MovePhysicsItemToHand(float DeltaTime)
@@ -369,9 +376,9 @@ void AVRPhysicsHand::Tick(float DeltaTime)
 		bDoOnceOnTick = true;
 	}
 
-	if (HandSK->GetBodyInstance() && HandSK->IsSimulatingPhysics())
+	if (PhysicsBase->GetBodyInstance() && PhysicsBase->IsSimulatingPhysics())
 	{
-		HandSK->GetBodyInstance()->AddCustomPhysics(OnCalcCustomPhysics);
+		PhysicsBase->GetBodyInstance()->AddCustomPhysics(OnCalcCustomPhysics);
 	}
 	 
 }

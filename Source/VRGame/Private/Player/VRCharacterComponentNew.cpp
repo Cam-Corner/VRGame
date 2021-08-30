@@ -50,8 +50,31 @@ void UVRCharacterComponentNew::TickComponent(float DeltaTime, ELevelTick TickTyp
 		{
 			OwningPlayerHandler(DeltaTime);
 		}
-	}
+		else if (Role == ROLE_SimulatedProxy || Role >= ROLE_Authority)
+		{
+			SimProxyHandler(DeltaTime);
 
+			if (!Camera)
+				GEngine->AddOnScreenDebugMessage(2, .01f, FColor::Red, "Camera NULL", true);
+			else
+				GEngine->AddOnScreenDebugMessage(2, .01f, FColor::Red, "Camera", true);
+
+			if (!CameraOrigin)
+				GEngine->AddOnScreenDebugMessage(3, .01f, FColor::Red, "CameraOrigin NULL", true);
+			else
+				GEngine->AddOnScreenDebugMessage(3, .01f, FColor::Red, "CameraOrigin", true);
+
+			if (!Capsule)
+				GEngine->AddOnScreenDebugMessage(4, .01f, FColor::Red, "Capsule NULL", true);
+			else
+				GEngine->AddOnScreenDebugMessage(4, .01f, FColor::Red, "Capsule", true);
+		}
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(1, .01f, FColor::Red, "OwningPawn NULL", true);
+	}
+	
 	// ...
 }
 
@@ -189,6 +212,44 @@ bool UVRCharacterComponentNew::IsWalkableSurface(const FHitResult& Hit)
 	return true;
 }
 
+void UVRCharacterComponentNew::UpdateProxyMoveData(FVector CurrentLocation, FVector Dir, float CapHalfHeight)
+{
+	LastProxyUpdate.LastLocation = CurrentLocation;
+	LastProxyUpdate.Direction = Dir;
+	LastProxyUpdate.bGoToLastLocation = true;
+
+	//ScaleCapsuleHeight(CapHalfHeight);
+	{
+		if (!Capsule || !Camera || !CameraOrigin)
+			return;
+
+		/*Save old collision Hight for later*/
+		float OldHeight = Capsule->GetScaledCapsuleHalfHeight();
+		Capsule->SetCapsuleHalfHeight(CapHalfHeight);
+		float OffsetNeeded = CapHalfHeight - OldHeight;
+		Capsule->AddWorldOffset(FVector(0, 0, OffsetNeeded));
+	}
+
+	FVector CapLoc = Capsule->GetComponentLocation();
+	float Error = FVector::Distance(CapLoc, CurrentLocation);
+
+	if (Error > MaxLocationError)
+	{
+		Capsule->SetWorldLocation(CurrentLocation);
+	}
+	//GEngine->AddOnScreenDebugMessage(5, .01f, FColor::Red, "UpdateProxyMoveData()", true);
+}
+
+void UVRCharacterComponentNew::Server_SendMove_Implementation(FVector CurrentLocation, FVector Dir, float CapHalfHeight)
+{
+	NetMulticast_SendMove(CurrentLocation, Dir, CapHalfHeight);
+}
+
+void UVRCharacterComponentNew::NetMulticast_SendMove_Implementation(FVector CurrentLocation, FVector Dir, float CapHalfHeight)
+{
+	UpdateProxyMoveData(CurrentLocation, Dir, CapHalfHeight);
+}
+
 void UVRCharacterComponentNew::SphereCast(FHitResult& Result, FVector StartLoc, FVector EndLoc, 
 	float SphereRadius, bool bShowDebug, FColor Colour, float DebugTimer)
 {
@@ -247,13 +308,10 @@ void UVRCharacterComponentNew::ShapeCast(FHitResult& Result, FVector StartLoc, F
 
 void UVRCharacterComponentNew::HandleGroundedMode(float DeltaTime)
 {
-	if (!Capsule || !Camera)
+	if (!Capsule || !Camera || !OwningPawn)
 		return;
 
-	/*Set the forward rotation to the Yaw of the camera*/
-	FRotator NewRotation = Capsule->GetComponentRotation();
-	NewRotation.Yaw = Camera->GetComponentRotation().Yaw;
-	Capsule->SetWorldRotation(NewRotation);
+	ENetRole Role = GetOwnerRole();
 
 	/** check to see if we are still grounded */
 	FHitResult Hit;
@@ -264,28 +322,81 @@ void UVRCharacterComponentNew::HandleGroundedMode(float DeltaTime)
 	if (!Hit.bBlockingHit)
 		CurrentMovementType = EMovementType::EMM_Falling;
 
-	/* get the new input movement values */
-	FVector2D InputDir = ConsumeMovementVector();
+	if (OwningPawn->IsLocallyControlled())
+	{
+		/*Set the forward rotation to the Yaw of the camera*/
+		FRotator NewRotation = Capsule->GetComponentRotation();
+		NewRotation.Yaw = Camera->GetComponentRotation().Yaw;
+		Capsule->SetWorldRotation(NewRotation);
 
-	if ((InputDir.X < MovementDeadZone && InputDir.Y < MovementDeadZone)
-		&& (InputDir.X > -MovementDeadZone && InputDir.Y > -MovementDeadZone)
-		|| InputDir == FVector2D::ZeroVector)
-		return;
+		/* get the new input movement values */
+		FVector2D InputDir = ConsumeMovementVector();
+		
+		if ((InputDir.X < MovementDeadZone && InputDir.Y < MovementDeadZone)
+			&& (InputDir.X > -MovementDeadZone && InputDir.Y > -MovementDeadZone)
+			|| InputDir == FVector2D::ZeroVector)
+		{
+			if (LastInputDir != InputDir)
+			{
+				Server_SendMove(Capsule->GetComponentLocation(), FVector::ZeroVector, Capsule->GetScaledCapsuleHalfHeight());
+				SendMoveTimer = 0.0f;
+				LastInputDir = InputDir;
+			}
 
-	FVector MovementDir = FVector::ZeroVector;
+			return;
+		}
 
 
-	if (InputDir.Y != 0)
-		MovementDir += Capsule->GetForwardVector() * InputDir.Y;
+		LastInputDir = InputDir;
+		FVector MovementDir = FVector::ZeroVector;
 
-	if (InputDir.X != 0)
-		MovementDir += Capsule->GetRightVector() * InputDir.X;
+		if (InputDir.Y != 0)
+			MovementDir += Capsule->GetForwardVector() * InputDir.Y;
 
-	if (MovementDir.Size() > 1)
-		MovementDir.Normalize();
+		if (InputDir.X != 0)
+			MovementDir += Capsule->GetRightVector() * InputDir.X;
 
-	if (InputDir != FVector2D::ZeroVector)
-		MoveCapsule(Capsule, MovementDir, DefaultWalkSpeed * DeltaTime, true, true);
+		if (MovementDir.Size() > 1)
+			MovementDir.Normalize();
+
+		if (InputDir != FVector2D::ZeroVector)
+			MoveCapsule(Capsule, MovementDir, DefaultWalkSpeed * DeltaTime, true, true);	
+
+		if (SendMoveTimer <= 0)
+		{
+			Server_SendMove(Capsule->GetComponentLocation(), MovementDir, Capsule->GetScaledCapsuleHalfHeight());
+			SendMoveTimer = 0.1f;
+		}
+		else
+			SendMoveTimer -= DeltaTime;
+	}
+	else if (Role == ROLE_SimulatedProxy || Role >= ROLE_Authority)
+	{
+		if (LastProxyUpdate.bGoToLastLocation)
+		{
+			FVector DirToCap = LastProxyUpdate.LastLocation - Capsule->GetComponentLocation();
+			DirToCap.Z = 0;
+			DirToCap.Normalize();
+			float CurrentOffset = DefaultWalkSpeed * DeltaTime;
+			float Distance = FVector::Distance(Capsule->GetComponentLocation(), LastProxyUpdate.LastLocation);
+			
+			if(CurrentOffset < Distance)
+				MoveCapsule(Capsule, DirToCap, CurrentOffset, false, false);
+			else
+			{
+				float LeftOver = CurrentOffset - Distance;
+				MoveCapsule(Capsule, DirToCap, Distance, false, false);
+				MoveCapsule(Capsule, LastProxyUpdate.Direction, LeftOver, false, false);
+				LastProxyUpdate.bGoToLastLocation = false;
+			}
+		}
+		else
+		{
+			if (LastProxyUpdate.Direction != FVector::ZeroVector)
+				MoveCapsule(Capsule, LastProxyUpdate.Direction, DefaultWalkSpeed * DeltaTime, false, false);
+		}	
+	}
+
 }
 
 void UVRCharacterComponentNew::HandleFallingMode(float DeltaTime)
@@ -375,7 +486,7 @@ void UVRCharacterComponentNew::HmdCollisionDistanceCheck()
 	}
 }
 
-void UVRCharacterComponentNew::ScaleCapsuleHeight()
+void UVRCharacterComponentNew::ScaleCapsuleHeight(float CameraZ)
 {
 	if (!Capsule || !Camera || !CameraOrigin)
 		return;
@@ -384,13 +495,14 @@ void UVRCharacterComponentNew::ScaleCapsuleHeight()
 	float OldHeight = Capsule->GetScaledCapsuleHalfHeight();
 
 	/*Work out new collision height*/
-	float CameraZ = Camera->GetComponentLocation().Z;
+	//float CameraZ = Camera->GetComponentLocation().Z;
 	float ActorZ = CameraOrigin->GetComponentLocation().Z;
 	float NewCapHeight = (CameraZ - ActorZ) / 2;
 	Capsule->SetCapsuleHalfHeight(NewCapHeight);
 
 	FVector CapLoc = Capsule->GetComponentLocation();
 	CapLoc.Z = CameraOrigin->GetComponentLocation().Z + Capsule->GetScaledCapsuleHalfHeight();
+	CapLoc.Z += SMALL_NUMBER;
 	Capsule->SetWorldLocation(CapLoc);
 }
 
@@ -438,7 +550,7 @@ void UVRCharacterComponentNew::ZRecenter()
 
 void UVRCharacterComponentNew::OwningPlayerHandler(float DeltaTime)
 {
-	ScaleCapsuleHeight();
+	ScaleCapsuleHeight(Camera->GetComponentLocation().Z);
 
 	MoveCollisionToHmd();
 
@@ -459,10 +571,23 @@ void UVRCharacterComponentNew::OwningPlayerHandler(float DeltaTime)
 	HmdCollisionDistanceCheck();
 
 	CameraCollisionCheck();
+
+	
 }
 
 void UVRCharacterComponentNew::SimProxyHandler(float DeltaTime)
 {
+	switch (CurrentMovementType)
+	{
+	case EMovementType::EMM_Grounded:
+		HandleGroundedMode(DeltaTime);
+		break;
+	case EMovementType::EMM_Falling:
+		HandleFallingMode(DeltaTime);
+		break;
+	default:
+		break;
+	}
 
 }
 

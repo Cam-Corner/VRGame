@@ -345,15 +345,15 @@ void AAutoLoadingGun::HandleHoldingSlider(float DeltaTime)
 	{
 		if (!bStuckInEmptyPos)
 		{
-			ReloadPartMesh->SetWorldLocation(GetActorLocation());
-			ShootingPartMesh->SetWorldLocation(GetActorLocation());
+			ReloadPartMesh->SetWorldLocation(ItemBaseMesh->GetComponentLocation());
+			ShootingPartMesh->SetWorldLocation(ItemBaseMesh->GetComponentLocation());
 		}
 		else
 		{
-			ShootingPartMesh->SetWorldLocation(GetActorLocation() + (-GetActorForwardVector() * GunEmptySliderOffset));
+			ShootingPartMesh->SetWorldLocation(ItemBaseMesh->GetComponentLocation() + (-GetActorForwardVector() * GunEmptySliderOffset));
 			
 			if(bReloadPartMovesWhenShooting)
-				ReloadPartMesh->SetWorldLocation(GetActorLocation() + (-GetActorForwardVector() * GunEmptySliderOffset));
+				ReloadPartMesh->SetWorldLocation(ItemBaseMesh->GetComponentLocation() + (-GetActorForwardVector() * GunEmptySliderOffset));
 		}
 	}
 }
@@ -387,8 +387,8 @@ void AAutoLoadingGun::HandleSliderMovement()
 
 	if (EndToPointDist > ReloadSliderOffset && Dist < EndToPointDist)
 	{
-		ReloadPartMesh->SetWorldLocation(GetActorLocation());
-		ShootingPartMesh->SetWorldLocation(GetActorLocation());
+		ReloadPartMesh->SetWorldLocation(ItemBaseMesh->GetComponentLocation());
+		ShootingPartMesh->SetWorldLocation(ItemBaseMesh->GetComponentLocation());
 	}
 	else if (Dist < ReloadSliderOffset)
 	{
@@ -404,7 +404,7 @@ void AAutoLoadingGun::HandleSliderMovement()
 	}
 	else
 	{
-		FVector NewLocation = GetActorLocation() +
+		FVector NewLocation = ItemBaseMesh->GetComponentLocation() +
 			(-ReloadPartMesh->GetForwardVector() * ReloadSliderOffset);
 
 		ReloadPartMesh->SetWorldLocation(NewLocation);

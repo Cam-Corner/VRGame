@@ -6,6 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Networking/NetworkingHelpers.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/BoxComponent.h"
 
 // Sets default values
 AVRItem::AVRItem()
@@ -13,9 +14,16 @@ AVRItem::AVRItem()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	BasePhysicsBox = CreateDefaultSubobject<UBoxComponent>("BasePhysicsBox");
+	BasePhysicsBox->SetSimulatePhysics(true);
+	BasePhysicsBox->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	BasePhysicsBox->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+	RootComponent = BasePhysicsBox;
+
 	ItemBaseMesh = CreateDefaultSubobject<UStaticMeshComponent>("Item Base Mesh");
-	ItemBaseMesh->SetSimulatePhysics(true);
-	RootComponent = ItemBaseMesh;
+	ItemBaseMesh->SetSimulatePhysics(false);
+	ItemBaseMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ItemBaseMesh->SetupAttachment(BasePhysicsBox);
 
 	OnCalcCustomPhysics.BindUObject(this, &AVRItem::CustomPhysics);
 }
@@ -32,9 +40,9 @@ void AVRItem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (ItemBaseMesh->GetBodyInstance())
+	if (BasePhysicsBox->GetBodyInstance())
 	{
-		ItemBaseMesh->GetBodyInstance()->AddCustomPhysics(OnCalcCustomPhysics);
+		BasePhysicsBox->GetBodyInstance()->AddCustomPhysics(OnCalcCustomPhysics);
 	}
 
 	if (!bItemHeald && MainHand)
@@ -46,6 +54,14 @@ bool AVRItem::MainHandGrabbed(AVRPhysicsHand* Hand)
 	if (bItemHeald)
 		return false;
 
+	if (BasePhysicsBox->GetBodyInstance())
+	{
+		FVector InertiaTensor = BasePhysicsBox->GetBodyInstance()->GetBodyInertiaTensor();
+		FVector BoxExtent = BasePhysicsBox->GetBodyInstance()->GetBodyBounds().GetExtent();
+		InertiaTensor = InertiaTensor / BoxExtent;
+		BasePhysicsBox->GetBodyInstance()->InertiaTensorScale = InertiaTensor;
+	}
+	
 	MainHand = Hand;
 	bItemHeald = true;
 
@@ -56,6 +72,8 @@ void AVRItem::MainHandReleased()
 {
 	if(MainHand)
 		MainHand->DropItemsInHand();
+
+	BasePhysicsBox->GetBodyInstance()->InertiaTensorScale = FVector(1, 1, 1);
 
 	bShouldDropNextFrame = false;
 	bItemHeald = false;
@@ -106,7 +124,7 @@ void AVRItem::MoveItemToHand(float DeltaTime)
 	if (!MainHand)
 		return;
 
-	FBodyInstance* BI = ItemBaseMesh->GetBodyInstance();
+	FBodyInstance* BI = BasePhysicsBox->GetBodyInstance();
 
 	FVector CurrentLoc = BI->GetUnrealWorldTransform().GetLocation();
 	CurrentLoc += BI->GetUnrealWorldTransform().GetRotation().GetForwardVector() * -11;
@@ -158,7 +176,7 @@ void AVRItem::MoveItemToHand(float DeltaTime)
 	{
 		T = RotSpring.GetRequiredTorque(CQuat, DQuat, Vel, FVector::ZeroVector);
 	}
-		
+	
 	BI->AddTorqueInRadians(T * BI->GetBodyMass(), false);
 
 	if (MainHand)
